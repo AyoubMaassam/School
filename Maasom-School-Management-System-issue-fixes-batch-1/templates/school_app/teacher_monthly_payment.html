@@ -102,11 +102,22 @@
                                                 </td>
                                                 <td style="width: 30%;">
                                                     {% if not student_status.is_present and not student_status.is_excused and not student_status.not_yet_enrolled_for_session %}
-                                                    <div class="form-check">
-                                                        <input class="form-check-input count-absence-checkbox" type="checkbox" name="count_absence_{{ s_info.session_id }}_{{ student_status.id }}" id="count_absence_{{ s_info.session_id }}_{{ student_status.id }}">
-                                                        <label class="form-check-label" for="count_absence_{{ s_info.session_id }}_{{ student_status.id }}">
-                                                            احتساب للمدرس؟
-                                                        </label>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="form-check mr-3">
+                                                            <input class="form-check-input count-absence-checkbox" type="checkbox" name="count_absence_{{ s_info.session_id }}_{{ student_status.id }}" id="count_absence_{{ s_info.session_id }}_{{ student_status.id }}">
+                                                            <label class="form-check-label" for="count_absence_{{ s_info.session_id }}_{{ student_status.id }}">
+                                                                احتساب للمدرس؟
+                                                            </label>
+                                                        </div>
+                                                        <form method="POST" action="{% url 'teacher_monthly_payment' teacher.id %}" class="form-excuse-absence">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="action" value="mark_student_absence_excused">
+                                                            <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
+                                                            <input type="hidden" name="teacher_price_per_student_session_hidden" value="{{ teacher_price_per_session_str }}">
+                                                            <input type="hidden" name="session_id_to_update" value="{{ s_info.session_id }}">
+                                                            <input type="hidden" name="student_id_to_excuse" value="{{ student_status.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning">عذر الغياب</button>
+                                                        </form>
                                                     </div>
                                                     {% endif %}
                                                 </td>
@@ -186,6 +197,48 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // Handle excuse absence forms with Fetch API
+    document.querySelectorAll('.form-excuse-absence').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+            const url = form.action;
+            const button = form.querySelector('button[type="submit"]');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest' // To identify AJAX requests in Django
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    // Visually update the row
+                    const studentRow = button.closest('tr');
+                    studentRow.querySelector('.badge-danger').textContent = 'غياب معذور';
+                    studentRow.querySelector('.badge-danger').className = 'badge badge-warning';
+                    form.remove(); // Remove the button/form after successful excuse
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى.', 'danger');
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.innerHTML = 'عذر الغياب';
+            });
+        });
+    });
 });
 </script>
 {% endblock %}

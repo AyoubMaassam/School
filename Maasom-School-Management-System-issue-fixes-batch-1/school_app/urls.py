@@ -44,6 +44,7 @@ urlpatterns = [
     
     # Attendance routes
     path('attendance/', views.attendance_register, name='attendance_register'),
+    path('attendance/record/', views.attendance_record, name='attendance_record'),
     
     # Payment routes
     path('payments/student/<int:student_id>/', views.student_payment, name='student_payment'),

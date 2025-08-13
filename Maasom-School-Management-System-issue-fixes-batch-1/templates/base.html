@@ -66,6 +66,12 @@
             </a>
           </li>
           <li class="nav-item">
+            <a href="{% url 'attendance_record' %}" class="nav-link {% if request.path == '/attendance/record/' %}active{% endif %}">
+              <i class="fas fa-calendar-alt"></i>
+              <span>سجل الحضور</span>
+            </a>
+          </li>
+          <li class="nav-item">
             <a href="/payments/report/" class="nav-link {% if 'payments/report' in request.path %}active{% endif %}">
               <i class="fas fa-chart-line"></i>
               <span>التقارير المالية</span>

@@ -1272,6 +1272,53 @@ def attendance_register(request):
     }
     return render(request, 'school_app/attendance_register.html', context)
 
+
+def attendance_record(request):
+    today = timezone.now().date()
+
+    # Get groups that have sessions today
+    groups_with_sessions_today_ids = Session.objects.filter(date=today).values_list('group_id', flat=True).distinct()
+    groups_for_today = Group.objects.filter(id__in=groups_with_sessions_today_ids).order_by('name')
+
+    selected_group_id = request.GET.get('group_id')
+    selected_group = None
+    present_students = []
+    absent_students = []
+
+    if selected_group_id:
+        try:
+            selected_group = get_object_or_404(Group, id=selected_group_id)
+            # Find all sessions for this group today
+            sessions_for_group_today = Session.objects.filter(group=selected_group, date=today)
+            if sessions_for_group_today.exists():
+                # Get all students enrolled in the group
+                all_students_in_group = selected_group.students.all()
+
+                # Get all attendance records for this group's sessions today
+                attendance_records = Attendance.objects.filter(session__in=sessions_for_group_today)
+
+                present_student_ids = attendance_records.filter(present=True).values_list('student_id', flat=True)
+
+                # Students are present if they attended at least one session today
+                present_students = all_students_in_group.filter(id__in=present_student_ids)
+
+                # Absent students are those in the group who are not in the present list
+                absent_students = all_students_in_group.exclude(id__in=present_student_ids)
+
+        except (ValueError, Group.DoesNotExist):
+            messages.error(request, "الفوج المحدد غير صالح.")
+
+
+    context = {
+        'page_title': "سجل الحضور اليومي",
+        'groups_for_today': groups_for_today,
+        'selected_group': selected_group,
+        'present_students': present_students,
+        'absent_students': absent_students,
+    }
+    return render(request, 'school_app/attendance_record.html', context)
+
+
 import json # Make sure json is imported
 
 def api_record_attendance(request):
@@ -2919,34 +2966,50 @@ def teacher_monthly_payment_view(request, teacher_id):
         elif action == 'mark_student_absence_excused':
             session_id_excuse = request.POST.get('session_id_to_update')
             student_id_excuse = request.POST.get('student_id_to_excuse')
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
             if session_id_excuse and student_id_excuse:
                 try:
                     attendance_to_update = get_object_or_404(Attendance,
                                                              session_id=int(session_id_excuse),
                                                              student_id=int(student_id_excuse),
-                                                             session__group=current_group_post) # Ensure session is in the current group
+                                                             session__group=current_group_post)
 
-                    if not attendance_to_update.present: # Can only excuse absences
+                    if not attendance_to_update.present:
                         attendance_to_update.excused_absence = True
-                        # student_paid_for_session should likely be False if excused, unless policy differs
-                        # attendance_to_update.student_paid_for_session = False
                         attendance_to_update.save()
-                        messages.success(request, f"تم تسجيل غياب الطالب {attendance_to_update.student.first_name} لحصة {attendance_to_update.session.date} كغياب معذور.")
 
-                        # If a calculation was present, it's now potentially invalid. Clear it.
                         if 'calculated_teacher_payment_details' in request.session:
                             del request.session['calculated_teacher_payment_details']
+                            # Optionally, add a specific message for AJAX response about this
+
+                        if is_ajax:
+                            return JsonResponse({'status': 'success', 'message': f"تم تسجيل غياب الطالب {attendance_to_update.student.first_name} كغياب معذور."})
+                        else:
+                            messages.success(request, f"تم تسجيل غياب الطالب {attendance_to_update.student.first_name} لحصة {attendance_to_update.session.date} كغياب معذور.")
                             messages.warning(request, "تم مسح حساب الدفع السابق بسبب تغيير حالة الغياب. يرجى إعادة الحساب إذا لزم الأمر.")
+
                     else:
-                        messages.warning(request, "لا يمكن تسجيل غياب معذور لطالب مسجل كحاضر.")
+                        if is_ajax:
+                            return JsonResponse({'status': 'error', 'message': 'لا يمكن تسجيل غياب معذور لطالب مسجل كحاضر.'}, status=400)
+                        else:
+                            messages.warning(request, "لا يمكن تسجيل غياب معذور لطالب مسجل كحاضر.")
                 except Http404:
-                    messages.error(request, "لم يتم العثور على سجل الحضور المطلوب لتحديثه.")
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': 'لم يتم العثور على سجل الحضور المطلوب.'}, status=404)
+                    else:
+                        messages.error(request, "لم يتم العثور على سجل الحضور المطلوب لتحديثه.")
                 except Exception as e:
                     logger.error(f"Error marking absence excused: {e}", exc_info=True)
-                    messages.error(request, f"حدث خطأ أثناء تحديث سجل الحضور: {str(e)}")
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': f'حدث خطأ: {str(e)}'}, status=500)
+                    else:
+                        messages.error(request, f"حدث خطأ أثناء تحديث سجل الحضور: {str(e)}")
             else:
-                messages.error(request, "معلومات غير كافية لتحديث حالة الغياب (معرف الجلسة أو الطالب مفقود).")
+                if is_ajax:
+                    return JsonResponse({'status': 'error', 'message': 'معلومات غير كافية لتحديث حالة الغياب.'}, status=400)
+                else:
+                    messages.error(request, "معلومات غير كافية لتحديث حالة الغياب (معرف الجلسة أو الطالب مفقود).")
 
             return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + f'?group_id={group_id_post}&teacher_price_per_student_session={teacher_price_str_post}')
 
