@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إيصال دفع مستحقات مدرس</title>
+    <style>
+        body {
+            font-family: 'DejaVu Sans', 'Arial', sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            color: #333;
+            background-color: #fff;
+        }
+        .receipt-container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #2c3e50;
+        }
+        .details, .payment-summary, .sessions-list {
+            margin-bottom: 20px;
+        }
+        .details p, .payment-summary p {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        .details strong, .payment-summary strong {
+            display: inline-block;
+            min-width: 200px; /* Adjust for alignment */
+            color: #555;
+        }
+        .sessions-list table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .sessions-list th, .sessions-list td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+        .sessions-list th {
+            background-color: #f2f2f2;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #777;
+        }
+        .print-date {
+            text-align: left;
+            font-size: 12px;
+            color: #999;
+            margin-top: 20px;
+        }
+        @media print {
+            body { margin: 0; font-size: 12pt; }
+            .receipt-container { width: 100%; border: none; box-shadow: none; margin: 0; padding: 0; }
+            .no-print { display: none; }
+            .sessions-list th, .sessions-list td { border: 1px solid #ccc !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt-container">
+        <div class="header">
+            <h1>مدرسة معصوم (اسم مدرستك هنا)</h1>
+            <h2>إيصال دفع مستحقات مدرس</h2>
+        </div>
+
+        <div class="details">
+            <p><strong>اسم المدرس:</strong> {{ teacher.first_name }} {{ teacher.last_name }}</p>
+            <p><strong>الفوج:</strong> {{ group.name }} ({{ group.subject.name }})</p>
+            <p><strong>إجمالي عدد الطلاب في الفوج:</strong> {{ group.students.count }}</p>
+        </div>
+
+        <div class="payment-summary">
+            <p><strong>سعر الدفع لكل حالة (طالب/غياب):</strong> {{ price_per_instance|floatformat:2 }} دج</p>
+            <p><strong>إجمالي حضور الطلاب المدفوع له:</strong> {{ total_student_presences_paid_for }}</p>
+            <p><strong>إجمالي الغيابات المحتسبة للدفع:</strong> {{ total_absences_counted_for_payment }}</p>
+            <p><strong>إجمالي الحالات الفعالة المدفوعة:</strong> {{ total_effective_paid_instances }}</p>
+            <hr>
+            <p><strong>المبلغ الإجمالي المدفوع للمدرس:</strong> {{ total_payment_amount|floatformat:2 }} دج</p>
+            <hr>
+        </div>
+
+        {% if compensated_sessions_data %}
+        <div class="sessions-list">
+            <p><strong>تفاصيل الحصص المعوضة:</strong></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>تاريخ الحصة</th>
+                        <th>وقت البدء</th>
+                        <th>الطلاب الحاضرون</th>
+                        <th>الغياب (غير مبرر)</th>
+                        <th>الغياب (مبرر)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session_data in compensated_sessions_data %}
+                    <tr>
+                        <td>{{ session_data.date|date:"Y-m-d" }}</td>
+                        <td>{{ session_data.start_time|time:"H:i" }}</td>
+                        <td>{{ session_data.students_present_count }}</td>
+                        <td>{{ session_data.students_absent_unexcused_count }}</td>
+                        <td>{{ session_data.students_absent_excused_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="sessions-list">
+            <p><em>لم يتم تحديد تفاصيل حصص معينة لهذا الإيصال.</em></p>
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <p>شكراً لجهودكم.</p>
+            <p class="print-date">طبع في: {{ print_date|date:"Y-m-d H:i:s" }}</p>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

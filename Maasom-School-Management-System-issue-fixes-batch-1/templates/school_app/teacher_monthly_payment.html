@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}الدفع الشهري للمدرس - {{ teacher.first_name }} {{ teacher.last_name }}{% endblock %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">معلومات المدرس</h3>
+        </div>
+        <div class="card-body">
+            <p><strong>الاسم:</strong> {{ teacher.first_name }} {{ teacher.last_name }}</p>
+            <p><strong>المادة الأساسية:</strong> {{ teacher.subject.name }}</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">اختيار الفوج وتحديد سعر الحصة</h3>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{% url 'teacher_monthly_payment' teacher.id %}" class="mb-3">
+                <div class="form-row align-items-end">
+                    <div class="col-md-6">
+                        <label for="group_id_select">اختر الفوج:</label>
+                        <select name="group_id" id="group_id_select" class="form-control">
+                            <option value="">--- اختر فوجاً ---</option>
+                            {% for group_item in taught_groups %}
+                                <option value="{{ group_item.id }}" {% if selected_group and selected_group.id == group_item.id %}selected{% endif %}>
+                                    {{ group_item.name }} ({{ group_item.subject.name }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="teacher_price_per_session_input">سعر الحصة للمدرس (دج):</label>
+                        <input type="number" name="teacher_price_per_session" id="teacher_price_per_session_input" class="form-control"
+                               value="{{ teacher_price_per_session_str|default_if_none:'' }}" step="0.01" min="0" placeholder="أدخل السعر">
+                    </div>
+                    <div class="col-md-2 mt-2 mt-md-0">
+                        <button type="submit" class="btn btn-primary btn-block">عرض الحصص</button>
+                    </div>
+                </div>
+            </form>
+
+            {% if selected_group and teacher_price_per_session_str %}
+                <hr>
+                <h4>الحصص غير المدفوعة للفوج: {{ selected_group.name }}</h4>
+                <p><em>السعر المحدد للمدرس لكل طالب في الحصة: {{ teacher_price_per_session_str }} دج</em></p>
+
+                {% if not sessions_to_display %}
+                    <p class="alert alert-info mt-3">لا توجد حصص غير مدفوعة لهذا المدرس في هذا الفوج (تأكد من تسجيل حضور المدرس للحصص أولاً).</p>
+                {% else %}
+                    <form id="calculate-payment-form" method="POST" action="{% url 'teacher_monthly_payment' teacher.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="calculate_payment">
+                        <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
+                        <input type="hidden" name="teacher_price_per_student_session_hidden" value="{{ teacher_price_per_session_str }}">
+
+                        <p class="text-muted">اختر الحصص المراد دفعها، ثم حدد الغيابات التي تريد احتسابها ضمن أجر المدرس.</p>
+
+                        {% for s_info in sessions_to_display %}
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <div class="form-check">
+                                    <input class="form-check-input session-checkbox-calc" type="checkbox" name="sessions_to_pay_ids" value="{{ s_info.session_id }}" id="session_{{ s_info.session_id }}">
+                                    <label class="form-check-label font-weight-bold" for="session_{{ s_info.session_id }}">
+                                        حصة يوم {{ s_info.date|date:"Y-m-d" }} الساعة {{ s_info.time|time:"H:i" }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless">
+                                        <tbody>
+                                        {% for student_status in s_info.student_statuses %}
+                                            <tr>
+                                                <td style="width: 40%;">{{ student_status.name }}</td>
+                                                <td style="width: 30%;">
+                                                    {% if student_status.is_present %}
+                                                        <span class="badge badge-success">حاضر</span>
+                                                    {% elif student_status.is_excused %}
+                                                        <span class="badge badge-warning">غياب معذور</span>
+                                                    {% elif student_status.not_yet_enrolled_for_session %}
+                                                        <span class="badge badge-secondary">قبل الالتحاق</span>
+                                                    {% else %}
+                                                        <span class="badge badge-danger">غائب</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td style="width: 30%;">
+                                                    {% if not student_status.is_present and not student_status.is_excused and not student_status.not_yet_enrolled_for_session %}
+                                                    <div class="form-check">
+                                                        <input class="form-check-input count-absence-checkbox" type="checkbox" name="count_absence_{{ s_info.session_id }}_{{ student_status.id }}" id="count_absence_{{ s_info.session_id }}_{{ student_status.id }}">
+                                                        <label class="form-check-label" for="count_absence_{{ s_info.session_id }}_{{ student_status.id }}">
+                                                            احتساب للمدرس؟
+                                                        </label>
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <button type="submit" class="btn btn-info"><i class="fas fa-calculator"></i> حساب المبلغ المستحق للحصص المختارة</button>
+                    </form>
+                {% endif %}
+
+                {% if calculated_payment_details and calculated_payment_details.group_id == selected_group.id %}
+                <div class="mt-4 p-4 border rounded bg-light">
+                    <h4 class="text-primary">تفاصيل المبلغ المحسوب:</h4>
+                    <p><strong>عدد الحضور:</strong> {{ calculated_payment_details.total_presences }}</p>
+                    <p><strong>عدد الغيابات المحتسبة للدفع:</strong> {{ calculated_payment_details.total_unexcused_absences_for_payment }}</p>
+                    <p><strong>إجمالي الطلاب المحتسبين للدفع:</strong> <span class="font-weight-bold">{{ calculated_payment_details.total_payable_instances }}</span></p>
+                    <p><strong>سعر المدرس لكل طالب:</strong> {{ calculated_payment_details.teacher_price_per_student_session|floatformat:2 }} دج</p>
+                    <hr>
+                    <h5 class="text-success"><strong>إجمالي المبلغ المستحق للمدرس:</strong> <span class="badge badge-success" style="font-size: 1.2rem;">{{ calculated_payment_details.calculated_total_payment|floatformat:2 }} دج</span></h5>
+
+                    <p class="mt-3 small text-muted"><strong>الحصص التي تم حسابها:</strong>
+                        {% for detail in calculated_payment_details.detailed_breakdown %}
+                            {{ detail.date|date:"Y-m-d" }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+
+                    <form method="POST" action="{% url 'teacher_monthly_payment' teacher.id %}" class="mt-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="process_payment">
+                        <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
+                        <input type="hidden" name="teacher_price_per_student_session_hidden" value="{{ calculated_payment_details.teacher_price_per_student_session }}">
+
+                        <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-check-circle"></i> تأكيد ودفع المبلغ</button>
+                        <a href="{% url 'teacher_monthly_payment' teacher.id %}?group_id={{ selected_group.id }}&teacher_price_per_student_session={{ teacher_price_per_session_str }}" class="btn btn-secondary btn-lg">إلغاء وإعادة الحساب</a>
+                    </form>
+                </div>
+                {% endif %}
+
+            {% elif request.GET.group_id %}
+                <p class="text-danger">الرجاء إدخال سعر الحصة للمدرس لهذا الفوج لعرض الحصص.</p>
+            {% else %}
+                <p class="text-info">الرجاء اختيار فوج وإدخال سعر الحصة للمدرس لعرض التفاصيل.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const groupSelect = document.getElementById('group_id_select');
+    const priceInput = document.getElementById('teacher_price_per_session_input');
+
+    // Persist price input if group changes, or submit form
+    if (groupSelect) {
+        groupSelect.addEventListener('change', function() {
+            // If price is already entered, auto-submit. Otherwise, user needs to fill price then click button.
+            if (priceInput && priceInput.value) {
+                this.form.submit();
+            }
+        });
+    }
+
+    // Select/Deselect all sessions for calculation
+    const selectAllCalcCheckbox = document.getElementById('select_all_sessions_calc');
+    if (selectAllCalcCheckbox) {
+        selectAllCalcCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.session-checkbox-calc').forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

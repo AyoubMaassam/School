@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}تسجيل الحضور{% endblock %}
+
+{% block page_title %}{{ page_title|default:"تسجيل الحضور" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.notification-area {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1050;
+    width: 350px;
+}
+.notification-toast {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 1.1rem;
+    opacity: 0;
+    transition: opacity 0.5s, transform 0.5s;
+    transform: translateX(100%);
+}
+.notification-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.notification-toast.success { background-color: #28a745; }
+.notification-toast.error { background-color: #dc3545; }
+.notification-toast.warning { background-color: #ffc107; color: #000; }
+.notification-toast.info { background-color: #17a2b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="notification-area" class="notification-area"></div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="card-title">تسجيل الحضور التلقائي</h2>
+  </div>
+  <div class="card-body">
+    <div class="form-group">
+      <label for="scan-input">امسح بطاقة الطالب أو أدخل الرقم/الاسم:</label>
+      <input type="text" id="scan-input" name="student_identifier" class="form-control form-control-lg" placeholder="في انتظار المسح..." autofocus>
+    </div>
+    <div class="attendance-instructions mt-4">
+      <h3>تعليمات:</h3>
+      <ul>
+        <li>بمجرد مسح البطاقة، سيتم تسجيل الحضور تلقائياً لأقرب حصة متاحة للطالب (في نطاق ساعتين قبل وبعد بداية الحصة).</li>
+        <li>لا حاجة للضغط على أي زر.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="my-3"> <!-- New container for the button -->
+    <button id="mark-all-absent-btn" class="btn btn-warning" style="display: none;">تسجيل غياب للكل (للطلاب غير المسجلين في هذه الحصة)</button>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h2 class="card-title mb-0">سجل الحضور للحصة المختارة</h2>
+        {# Button moved above the row of tables #}
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>اسم الطالب</th>
+            <th>وقت التسجيل</th>
+            <th>حالة الدفع</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody id="today-attendance-tbody">
+          <tr id="no-attendance-row">
+            <td colspan="4" class="text-center">الرجاء اختيار حصة لعرض سجل الحضور.</td>
+          </tr>
+          <!-- Attendance rows will be populated here by JavaScript -->
+        </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card mt-4">
+      <div class="card-header">
+        <h2 class="card-title mb-0">سجل الغياب للحصة المختارة</h2>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>اسم الطالب</th>
+                <th>الحالة</th>
+                <th>ملاحظات</th>
+                {# Add an action column if needed for excused absences later #}
+              </tr>
+            </thead>
+            <tbody id="absence-record-tbody">
+              <tr id="no-absence-row">
+                <td colspan="3" class="text-center">الرجاء اختيار حصة لعرض سجل الغياب.</td>
+              </tr>
+              <!-- Absence rows will be populated here by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Teacher Attendance Confirmation Modal (will be created dynamically) -->
+<div id="teacher-confirmation-modal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>تأكيد حضور المدرس</h3>
+      <span class="close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p>هل حضر المدرس للحصة؟</p>
+      <div class="group-info">
+        <p>الفوج: <span id="confirmation-group-name"></span></p>
+        <p>المدرس: <span id="confirmation-teacher-name"></span></p>
+        <p>الوقت: <span id="confirmation-session-time"></span></p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="teacher-present" class="btn btn-success">نعم، حضر</button>
+      <button id="teacher-absent" class="btn btn-danger">لا، لم يحضر</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanInput = document.getElementById('scan-input');
+    const notificationArea = document.getElementById('notification-area');
+    const attendanceTableBody = document.getElementById('today-attendance-tbody');
+    const noAttendanceRow = document.getElementById('no-attendance-row');
+    const csrftoken = getCookie('csrftoken');
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showNotification(message, type = 'info', duration = 2000) {
+        const toast = document.createElement('div');
+        toast.className = `notification-toast ${type}`;
+        toast.textContent = message;
+        notificationArea.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 500);
+        }, duration);
+    }
+
+    function addAttendanceToLog(data) {
+        if (noAttendanceRow) {
+            noAttendanceRow.style.display = 'none';
+        }
+        const row = attendanceTableBody.insertRow(0); // Insert at the top
+        row.insertCell().textContent = data.student_name || 'N/A';
+        row.insertCell().textContent = data.session_info || 'N/A';
+        row.insertCell().textContent = new Date().toLocaleString('sv-SE');
+
+        const paymentCell = row.insertCell();
+        const paymentBadge = document.createElement('span');
+        paymentBadge.classList.add('badge');
+        if (data.payment_status_message) {
+            paymentBadge.classList.add('badge-danger');
+            paymentBadge.textContent = 'غير مدفوعة';
+        } else {
+            paymentBadge.classList.add('badge-success');
+            paymentBadge.textContent = 'مدفوعة';
+        }
+        paymentCell.appendChild(paymentBadge);
+    }
+
+
+    async function handleAttendanceScan() {
+        const identifier = scanInput.value.trim();
+        if (!identifier) return;
+
+        scanInput.disabled = true;
+
+        try {
+            const response = await fetch('/api/attendance/record_by_student/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+                body: JSON.stringify({ student_identifier: identifier }),
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showNotification(`${data.message}`, 'success', 1500);
+                if (data.payment_status_message) {
+                    setTimeout(() => {
+                        showNotification(data.payment_status_message, 'warning', 1500);
+                    }, 500);
+                }
+                addAttendanceToLog(data);
+            } else {
+                showNotification(data.message || 'خطأ غير معروف', 'error', 3000);
+            }
+        } catch (error) {
+            console.error('Error recording attendance:', error);
+            showNotification('فشل الاتصال بالخادم.', 'error', 3000);
+        } finally {
+            scanInput.value = '';
+            scanInput.disabled = false;
+            scanInput.focus();
+        }
+    }
+
+    scanInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            handleAttendanceScan();
+        }
+    });
+});
+</script>
+{% endblock %}
