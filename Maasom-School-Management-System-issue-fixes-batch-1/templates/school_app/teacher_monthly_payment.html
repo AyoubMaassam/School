@@ -68,7 +68,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="calculate_payment">
                         <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
-                        <input type="hidden" name="teacher_price_per_student_session_hidden" value="{{ teacher_price_per_session_str }}">
+                        <input type="hidden" name="teacher_price_per_session" value="{{ teacher_price_per_session_str }}">
 
                         <p class="text-muted">اختر الحصص المراد دفعها، ثم حدد الغيابات التي تريد احتسابها ضمن أجر المدرس.</p>
 
@@ -113,7 +113,7 @@
                                                             {% csrf_token %}
                                                             <input type="hidden" name="action" value="mark_student_absence_excused">
                                                             <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
-                                                            <input type="hidden" name="teacher_price_per_student_session_hidden" value="{{ teacher_price_per_session_str }}">
+                                                            <input type="hidden" name="teacher_price_per_session" value="{{ teacher_price_per_session_str }}">
                                                             <input type="hidden" name="session_id_to_update" value="{{ s_info.session_id }}">
                                                             <input type="hidden" name="student_id_to_excuse" value="{{ student_status.id }}">
                                                             <button type="submit" class="btn btn-sm btn-outline-warning">عذر الغياب</button>
@@ -154,10 +154,10 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="process_payment">
                         <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
-                        <input type="hidden" name="teacher_price_per_student_session_hidden" value="{{ calculated_payment_details.teacher_price_per_student_session }}">
+                        <input type="hidden" name="teacher_price_per_session" value="{{ calculated_payment_details.teacher_price_per_session }}">
 
                         <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-check-circle"></i> تأكيد ودفع المبلغ</button>
-                        <a href="{% url 'teacher_monthly_payment' teacher.id %}?group_id={{ selected_group.id }}&teacher_price_per_student_session={{ teacher_price_per_session_str }}" class="btn btn-secondary btn-lg">إلغاء وإعادة الحساب</a>
+                        <a href="{% url 'teacher_monthly_payment' teacher.id %}?group_id={{ selected_group.id }}&teacher_price_per_session={{ teacher_price_per_session_str }}" class="btn btn-secondary btn-lg">إلغاء وإعادة الحساب</a>
                     </form>
                 </div>
                 {% endif %}

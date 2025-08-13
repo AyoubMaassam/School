@@ -2787,7 +2787,7 @@ def teacher_monthly_payment_view(request, teacher_id):
     elif request.method == 'POST':
         action = request.POST.get('action')
         group_id_post = request.POST.get('group_id_hidden')
-        teacher_price_str_post = request.POST.get('teacher_price_per_student_session_hidden', '0')
+        teacher_price_str_post = request.POST.get('teacher_price_per_session', '0')
 
         try:
             teacher_price_decimal_post = Decimal(teacher_price_str_post)
