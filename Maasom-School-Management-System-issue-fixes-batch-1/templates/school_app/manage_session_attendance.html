@@ -25,6 +25,17 @@
       {% endfor %}
     {% endif %}
 
+    <div class="mb-4 p-3 border rounded bg-light">
+        <h4 class="text-danger">إجراءات خاصة</h4>
+        <p>لتسجيل غياب الأستاذ عن هذه الحصة، سيتم حذف الحصة بالكامل مع جميع سجلات حضور الطلاب المرتبطة بها.</p>
+        <form method="POST" action="{% url 'delete_session' session.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من تسجيل غياب الأستاذ؟ سيتم حذف الحصة بشكل نهائي.');">
+                <i class="fas fa-user-slash"></i> غياب الأستاذ وحذف الحصة
+            </button>
+        </form>
+    </div>
+
     <form method="post">
       {% csrf_token %}
       <div class="table-responsive">

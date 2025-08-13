@@ -110,7 +110,7 @@ class Session(models.Model):
     date = models.DateField(verbose_name="التاريخ")
     start_time = models.TimeField(verbose_name="وقت البدء")
     duration = models.DecimalField(max_digits=4, decimal_places=2, verbose_name="المدة (ساعات)")
-    teacher_attended = models.BooleanField(null=True, blank=True, verbose_name="حضور المدرس")
+    teacher_attended = models.BooleanField(default=True, verbose_name="حضور المدرس")
     teacher_compensated = models.BooleanField(default=False, verbose_name="تم تعويض المدرس") # New field
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     
