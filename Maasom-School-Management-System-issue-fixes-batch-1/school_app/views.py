@@ -2726,217 +2726,119 @@ def teacher_monthly_payment_view(request, teacher_id):
     taught_groups = Group.objects.filter(teacher=teacher).select_related('subject')
 
     selected_group_id = request.GET.get('group_id')
-    # This is the teacher's earning per student per session
-    teacher_price_per_student_session_str = request.GET.get('teacher_price_per_student_session', '')
+    teacher_price_per_session_str = request.GET.get('teacher_price_per_session', '')
 
     group_details = None
     sessions_to_display = []
-    calculated_payment_details = request.session.get('calculated_teacher_payment_details', None) # Load from session
+    calculated_payment_details = request.session.get('calculated_teacher_payment_details', None)
 
     page_title = f"الدفع الشهري للمدرس: {teacher.first_name} {teacher.last_name}"
 
     if request.method == 'GET':
-        if selected_group_id and teacher_price_per_student_session_str:
+        if selected_group_id and teacher_price_per_session_str:
             try:
-                teacher_price_per_student_session = Decimal(teacher_price_per_student_session_str)
-                if teacher_price_per_student_session <= 0:
-                    messages.error(request, "سعر المدرس لكل طالب لكل حصة يجب أن يكون رقماً موجباً.")
-                    # Reset for safety, or handle as needed
-                    teacher_price_per_student_session_str = ''
+                teacher_price_per_session = Decimal(teacher_price_per_session_str)
+                if teacher_price_per_session <= 0:
+                    messages.error(request, "سعر الحصة يجب أن يكون رقماً موجباً.")
+                    teacher_price_per_session_str = ''
                 else:
                     selected_group = get_object_or_404(Group, id=selected_group_id, teacher=teacher)
                     group_details = selected_group
-
-                    # Fetch sessions for the selected group that the teacher attended and has not been compensated for.
                     sessions_for_payment_calculation = Session.objects.filter(
                         group=selected_group,
                         teacher_attended=True,
                         teacher_compensated=False
                     ).order_by('date', 'start_time').prefetch_related('attendance_set__student', 'group__students')
 
-                    # Determine student effective enrollment dates from StudentGroup model
-                    student_enrollment_dates = {
-                        sg.student_id: sg.enrollment_date
-                        for sg in StudentGroup.objects.filter(group=selected_group)
-                    }
+                    student_enrollment_dates = {sg.student_id: sg.enrollment_date for sg in StudentGroup.objects.filter(group=selected_group)}
 
                     for session_obj in sessions_for_payment_calculation:
                         student_statuses = []
-                        for student_in_group in selected_group.students.all(): # Iterate over students in this group
+                        for student_in_group in selected_group.students.all():
                             enrollment_date = student_enrollment_dates.get(student_in_group.id)
-
-                            # Skip student if session is before their effective enrollment date
                             if enrollment_date and session_obj.date < enrollment_date:
-                                status_display = "قبل الالتحاق"
-                                # Mark as not relevant for payment calculation by default
                                 student_statuses.append({
-                                    'id': student_in_group.id,
-                                    'name': f"{student_in_group.first_name} {student_in_group.last_name}",
-                                    'status': status_display,
-                                    'attendance_id': None, # No attendance record applicable
-                                    'is_excused': False, # Not applicable
-                                    'is_present': False, # Not applicable
-                                    'not_yet_enrolled_for_session': True
+                                    'id': student_in_group.id, 'name': f"{student_in_group.first_name} {student_in_group.last_name}",
+                                    'status': "قبل الالتحاق", 'attendance_id': None, 'is_excused': False,
+                                    'is_present': False, 'not_yet_enrolled_for_session': True
                                 })
-                                continue # Move to the next student for this session
+                                continue
 
-                            # Get or create attendance record if student was enrolled
                             attendance, created = Attendance.objects.get_or_create(
-                                student=student_in_group,
-                                session=session_obj,
-                                defaults={'present': False, 'excused_absence': False} # student_paid_for_session is not directly relevant here
+                                student=student_in_group, session=session_obj,
+                                defaults={'present': False, 'excused_absence': False}
                             )
-
-                            status_display = "غائب (غير معذور)" # Default for new or non-present, non-excused
-                            if attendance.present:
-                                status_display = "حاضر"
-                            elif attendance.excused_absence:
-                                status_display = "غائب (معذور)"
-
+                            status_display = "غائب (غير معذور)"
+                            if attendance.present: status_display = "حاضر"
+                            elif attendance.excused_absence: status_display = "غائب (معذور)"
                             student_statuses.append({
-                                'id': student_in_group.id,
-                                'name': f"{student_in_group.first_name} {student_in_group.last_name}",
-                                'status': status_display,
-                                'attendance_id': attendance.id,
-                                'is_excused': attendance.excused_absence,
-                                'is_present': attendance.present,
-                                'not_yet_enrolled_for_session': False
+                                'id': student_in_group.id, 'name': f"{student_in_group.first_name} {student_in_group.last_name}",
+                                'status': status_display, 'attendance_id': attendance.id, 'is_excused': attendance.excused_absence,
+                                'is_present': attendance.present, 'not_yet_enrolled_for_session': False
                             })
-
                         sessions_to_display.append({
-                            'session_id': session_obj.id,
-                            'date': session_obj.date,
-                            'time': session_obj.start_time,
-                            'student_statuses': student_statuses, # Corrected key name
+                            'session_id': session_obj.id, 'date': session_obj.date, 'time': session_obj.start_time,
+                            'student_statuses': student_statuses
                         })
-
-            except Group.DoesNotExist:
-                messages.error(request, "الفوج المحدد غير صحيح أو لا يتبع لهذا المدرس.")
-                group_details = None # Reset group_details
-            except ValueError: # For Decimal conversion
-                messages.error(request, "الرجاء إدخال سعر صحيح للمدرس لكل طالب لكل حصة.")
-                teacher_price_per_student_session_str = '' # Reset on error
-            except Exception as e:
-                logger.error(f"Error in TeacherMonthlyPayment GET: {e}", exc_info=True)
-                messages.error(request, "حدث خطأ غير متوقع أثناء تحميل البيانات.")
+            except (Group.DoesNotExist, ValueError):
+                messages.error(request, "بيانات غير صالحة.")
                 group_details = None
-                sessions_to_display = []
-
-        # If coming from a POST redirect (e.g. after calculate_payment or process_payment)
-        # calculated_payment_details might already be loaded from session at the start of the view.
-        # No specific additional GET logic needed for it here, template will handle display.
 
     elif request.method == 'POST':
         action = request.POST.get('action')
-        # These are crucial for POST actions and need to be consistently available
         group_id_post = request.POST.get('group_id_hidden')
         teacher_price_str_post = request.POST.get('teacher_price_per_student_session_hidden', '0')
 
         try:
             teacher_price_decimal_post = Decimal(teacher_price_str_post)
-            if teacher_price_decimal_post <= 0:
-                raise ValueError("Teacher price must be positive.")
+            if teacher_price_decimal_post <= 0: raise ValueError("Price must be positive.")
         except (ValueError, TypeError):
-            messages.error(request, "سعر المدرس المدخل غير صالح. لا يمكن تنفيذ الإجراء.")
-            # Redirect back with GET params if possible, or to a safe state
-            return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + (f'?group_id={group_id_post}&teacher_price_per_student_session={teacher_price_str_post}' if group_id_post else ''))
-
-        current_group_post = None
-        if group_id_post:
-            try:
-                current_group_post = get_object_or_404(Group, id=group_id_post, teacher=teacher)
-            except Http404:
-                messages.error(request, "الفوج المحدد في الطلب غير صالح أو لا يتبع لهذا المدرس.")
-                return redirect(reverse('teacher_monthly_payment', args=[teacher_id]))
-        else: # group_id_post is mandatory for all POST actions here
-            messages.error(request, "لم يتم تحديد فوج للعملية المطلوبة.")
+            messages.error(request, "سعر الحصة المدخل غير صالح.")
             return redirect(reverse('teacher_monthly_payment', args=[teacher_id]))
 
-        # Determine student effective enrollment dates from StudentGroup model
-        student_enrollment_dates_post = {
-            sg.student_id: sg.enrollment_date
-            for sg in StudentGroup.objects.filter(group=current_group_post)
-        }
+        current_group_post = get_object_or_404(Group, id=group_id_post, teacher=teacher)
+        student_enrollment_dates_post = {sg.student_id: sg.enrollment_date for sg in StudentGroup.objects.filter(group=current_group_post)}
+
+        redirect_url = reverse('teacher_monthly_payment', args=[teacher_id]) + f'?group_id={group_id_post}&teacher_price_per_session={teacher_price_str_post}'
 
         if action == 'calculate_payment':
             selected_session_ids = request.POST.getlist('sessions_to_pay_ids')
             if not selected_session_ids:
-                messages.error(request, "الرجاء اختيار حصة واحدة على الأقل لحساب الدفع.")
+                messages.error(request, "الرجاء اختيار حصة واحدة على الأقل.")
             else:
-                total_presences = 0
-                total_unexcused_absences_for_payment = 0
-                detailed_breakdown_for_session_storage = []
-
+                total_presences, total_unexcused_absences_for_payment = 0, 0
                 for session_id_str in selected_session_ids:
                     session_obj_calc = get_object_or_404(Session, id=int(session_id_str), group=current_group_post)
-                    session_presences = 0
-                    session_unexcused_absences_counted = 0
-
                     for student_in_group_calc in current_group_post.students.all():
-                        enrollment_date_calc = student_effective_enrollment_dates_post.get(student_in_group_calc.id)
-                        if enrollment_date_calc and session_obj_calc.date < enrollment_date_calc:
+                        if student_enrollment_dates_post.get(student_in_group_calc.id) and session_obj_calc.date < student_enrollment_dates_post.get(student_in_group_calc.id):
                             continue
-
-                        att_calc, created = Attendance.objects.get_or_create(
-                            student=student_in_group_calc,
-                            session=session_obj_calc,
-                            defaults={'present': False, 'excused_absence': False}
-                        )
-
+                        att_calc, created = Attendance.objects.get_or_create(student=student_in_group_calc, session=session_obj_calc, defaults={'present': False, 'excused_absence': False})
                         if att_calc.present:
-                            session_presences += 1
+                            total_presences += 1
                         elif not att_calc.excused_absence:
-                            absence_checkbox_name = f'count_absence_{session_id_str}_{student_in_group_calc.id}'
-                            if request.POST.get(absence_checkbox_name) == 'on':
-                                session_unexcused_absences_counted += 1
-
-                    total_presences += session_presences
-                    total_unexcused_absences_for_payment += session_unexcused_absences_counted
-
-                    detailed_breakdown_for_session_storage.append({
-                        'session_id': session_obj_calc.id,
-                        'date': session_obj_calc.date.isoformat(),
-                        'time': session_obj_calc.start_time.isoformat(),
-                        'presences': session_presences,
-                        'unexcused_absences_counted': session_unexcused_absences_counted
-                    })
+                            if request.POST.get(f'count_absence_{session_id_str}_{student_in_group_calc.id}') == 'on':
+                                total_unexcused_absences_for_payment += 1
 
                 total_payable_instances = total_presences + total_unexcused_absences_for_payment
-                calculated_total_payment = total_payable_instances * teacher_price_decimal_post
-
                 request.session['calculated_teacher_payment_details'] = {
-                    'group_id': current_group_post.id,
-                    'group_name': current_group_post.name,
-                    'teacher_price_per_student_session': str(teacher_price_decimal_post),
-                    'selected_session_ids': selected_session_ids,
-                    'total_presences': total_presences,
-                    'total_unexcused_absences_for_payment': total_unexcused_absences_for_payment,
-                    'total_payable_instances': total_payable_instances,
-                    'calculated_total_payment': str(calculated_total_payment),
-                    'detailed_breakdown': detailed_breakdown_for_session_storage
+                    'group_id': current_group_post.id, 'group_name': current_group_post.name,
+                    'teacher_price_per_session': str(teacher_price_decimal_post), 'selected_session_ids': selected_session_ids,
+                    'total_presences': total_presences, 'total_unexcused_absences_for_payment': total_unexcused_absences_for_payment,
+                    'total_payable_instances': total_payable_instances, 'calculated_total_payment': str(total_payable_instances * teacher_price_decimal_post)
                 }
-                messages.success(request, "تم حساب الدفع. يرجى مراجعة التفاصيل أدناه ثم تأكيد الدفع.")
-
-            return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + f'?group_id={group_id_post}&teacher_price_per_student_session={teacher_price_str_post}')
+                messages.success(request, "تم حساب الدفع. يرجى المراجعة والتأكيد.")
+            return redirect(redirect_url)
 
         elif action == 'process_payment':
             payment_details_to_process = request.session.get('calculated_teacher_payment_details')
-            if not payment_details_to_process or \
-               str(payment_details_to_process.get('group_id')) != group_id_post or \
-               payment_details_to_process.get('teacher_price_per_student_session') != teacher_price_str_post:
-                messages.error(request, "تفاصيل الدفع المحسوبة غير متطابقة أو مفقودة. يرجى إعادة الحساب أولاً.")
+            if not payment_details_to_process or str(payment_details_to_process.get('group_id')) != group_id_post:
+                messages.error(request, "تفاصيل الدفع غير متطابقة أو مفقودة. يرجى إعادة الحساب.")
             else:
                 session_ids_to_mark_compensated = payment_details_to_process.get('selected_session_ids', [])
                 final_payment_amount = Decimal(payment_details_to_process.get('calculated_total_payment', '0'))
-                compensated_count = 0
 
                 with transaction.atomic():
-                    sessions_to_update = Session.objects.filter(id__in=session_ids_to_mark_compensated, group=current_group_post)
-                    for session_to_comp in sessions_to_update:
-                        if session_to_comp.teacher_attended and not session_to_comp.teacher_compensated:
-                            session_to_comp.teacher_compensated = True
-                            session_to_comp.save()
-                            compensated_count += 1
+                    compensated_count = Session.objects.filter(id__in=session_ids_to_mark_compensated, group=current_group_post, teacher_attended=True, teacher_compensated=False).update(teacher_compensated=True)
 
                 if compensated_count > 0:
                     log_action(
@@ -2946,89 +2848,48 @@ def teacher_monthly_payment_view(request, teacher_id):
                     )
                     messages.success(request, f"تم تسجيل دفع المستحقات لـ {compensated_count} حصة بنجاح. المبلغ الإجمالي: {final_payment_amount} دج.")
 
+                    # Generate receipt URL
                     receipt_url = reverse('print_teacher_payment_receipt', args=[teacher_id, current_group_post.id]) + \
                                   f"?amount_paid={final_payment_amount}" + \
-                                  f"&price_per_session={payment_details_to_process.get('teacher_price_per_student_session',0)}" + \
+                                  f"&price_per_session={payment_details_to_process.get('teacher_price_per_session',0)}" + \
                                   f"&total_presences={payment_details_to_process.get('total_presences',0)}" + \
                                   f"&total_absences_counted={payment_details_to_process.get('total_unexcused_absences_for_payment',0)}" + \
                                   f"&effective_instances={payment_details_to_process.get('total_payable_instances',0)}" + \
                                   f"&session_ids={','.join(session_ids_to_mark_compensated)}"
                     request.session['last_teacher_payment_receipt_url'] = receipt_url
-
                 else:
                     messages.info(request, "لم يتم تحديث أي حصص كمدفوعة. قد تكون دفعت مسبقاً أو لم يتم تحديد حصص صالحة.")
 
                 if 'calculated_teacher_payment_details' in request.session:
                     del request.session['calculated_teacher_payment_details']
-
-            return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + f'?group_id={group_id_post}&teacher_price_per_student_session={teacher_price_str_post}')
+            return redirect(redirect_url)
 
         elif action == 'mark_student_absence_excused':
             session_id_excuse = request.POST.get('session_id_to_update')
             student_id_excuse = request.POST.get('student_id_to_excuse')
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
-            if session_id_excuse and student_id_excuse:
-                try:
-                    attendance_to_update = get_object_or_404(Attendance,
-                                                             session_id=int(session_id_excuse),
-                                                             student_id=int(student_id_excuse),
-                                                             session__group=current_group_post)
-
-                    if not attendance_to_update.present:
-                        attendance_to_update.excused_absence = True
-                        attendance_to_update.save()
-
-                        if 'calculated_teacher_payment_details' in request.session:
-                            del request.session['calculated_teacher_payment_details']
-                            # Optionally, add a specific message for AJAX response about this
-
-                        if is_ajax:
-                            return JsonResponse({'status': 'success', 'message': f"تم تسجيل غياب الطالب {attendance_to_update.student.first_name} كغياب معذور."})
-                        else:
-                            messages.success(request, f"تم تسجيل غياب الطالب {attendance_to_update.student.first_name} لحصة {attendance_to_update.session.date} كغياب معذور.")
-                            messages.warning(request, "تم مسح حساب الدفع السابق بسبب تغيير حالة الغياب. يرجى إعادة الحساب إذا لزم الأمر.")
-
-                    else:
-                        if is_ajax:
-                            return JsonResponse({'status': 'error', 'message': 'لا يمكن تسجيل غياب معذور لطالب مسجل كحاضر.'}, status=400)
-                        else:
-                            messages.warning(request, "لا يمكن تسجيل غياب معذور لطالب مسجل كحاضر.")
-                except Http404:
-                    if is_ajax:
-                        return JsonResponse({'status': 'error', 'message': 'لم يتم العثور على سجل الحضور المطلوب.'}, status=404)
-                    else:
-                        messages.error(request, "لم يتم العثور على سجل الحضور المطلوب لتحديثه.")
-                except Exception as e:
-                    logger.error(f"Error marking absence excused: {e}", exc_info=True)
-                    if is_ajax:
-                        return JsonResponse({'status': 'error', 'message': f'حدث خطأ: {str(e)}'}, status=500)
-                    else:
-                        messages.error(request, f"حدث خطأ أثناء تحديث سجل الحضور: {str(e)}")
-            else:
-                if is_ajax:
-                    return JsonResponse({'status': 'error', 'message': 'معلومات غير كافية لتحديث حالة الغياب.'}, status=400)
+            try:
+                attendance_to_update = get_object_or_404(Attendance, session_id=int(session_id_excuse), student_id=int(student_id_excuse), session__group=current_group_post)
+                if not attendance_to_update.present:
+                    attendance_to_update.excused_absence = True
+                    attendance_to_update.save()
+                    if 'calculated_teacher_payment_details' in request.session:
+                        del request.session['calculated_teacher_payment_details']
+                    if is_ajax: return JsonResponse({'status': 'success', 'message': "تم تسجيل الغياب كمعذور."})
+                    messages.success(request, "تم تسجيل الغياب كمعذور. يرجى إعادة حساب الدفع.")
                 else:
-                    messages.error(request, "معلومات غير كافية لتحديث حالة الغياب (معرف الجلسة أو الطالب مفقود).")
-
-            return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + f'?group_id={group_id_post}&teacher_price_per_student_session={teacher_price_str_post}')
-
-        else: # Unknown POST action
-            messages.error(request, "إجراء غير معروف.")
-            return redirect(reverse('teacher_monthly_payment', args=[teacher_id]))
-
-    # Common context for GET and after POST redirects
-    receipt_url_from_session = request.session.pop('last_teacher_payment_receipt_url', None)
-    # If calculated_payment_details was loaded at the start and not cleared by a POST action (like process_payment), it will be passed to template
+                    if is_ajax: return JsonResponse({'status': 'error', 'message': 'لا يمكن عذر الحضور.'}, status=400)
+                    messages.warning(request, "لا يمكن عذر الحضور.")
+            except Http404:
+                if is_ajax: return JsonResponse({'status': 'error', 'message': 'لم يتم العثور على سجل الحضور.'}, status=404)
+                messages.error(request, "لم يتم العثور على سجل الحضور.")
+            if is_ajax: return JsonResponse({'status': 'error', 'message': 'طلب غير صالح.'}, status=400)
+            return redirect(redirect_url)
 
     context = {
-        'teacher': teacher,
-        'taught_groups': taught_groups,
-        'selected_group': group_details, # This is current_group_post if POST, or selected_group from GET
-        'sessions_to_display': sessions_to_display, # Populated in GET
-        'teacher_price_per_student_session_str': teacher_price_per_student_session_str, # From GET, or persisted from POST redirect
-        'calculated_payment_details': calculated_payment_details, # From session, displayed if present
-        'page_title': page_title,
-        'receipt_url': receipt_url_from_session
+        'teacher': teacher, 'taught_groups': taught_groups, 'selected_group': group_details,
+        'sessions_to_display': sessions_to_display, 'teacher_price_per_session_str': teacher_price_per_session_str,
+        'calculated_payment_details': calculated_payment_details, 'page_title': page_title,
+        'receipt_url': request.session.pop('last_teacher_payment_receipt_url', None)
     }
     return render(request, 'school_app/teacher_monthly_payment.html', context)
