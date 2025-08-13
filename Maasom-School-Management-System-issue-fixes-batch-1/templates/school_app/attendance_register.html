@@ -56,67 +56,6 @@
   </div>
 </div>
 
-<div class="my-3"> <!-- New container for the button -->
-    <button id="mark-all-absent-btn" class="btn btn-warning" style="display: none;">تسجيل غياب للكل (للطلاب غير المسجلين في هذه الحصة)</button>
-</div>
-
-<div class="row">
-  <div class="col-md-6">
-    <div class="card mt-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h2 class="card-title mb-0">سجل الحضور للحصة المختارة</h2>
-        {# Button moved above the row of tables #}
-      </div>
-      <div class="card-body">
-        <div class="table-container">
-          <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>اسم الطالب</th>
-            <th>وقت التسجيل</th>
-            <th>حالة الدفع</th>
-            <th>إجراء</th>
-          </tr>
-        </thead>
-        <tbody id="today-attendance-tbody">
-          <tr id="no-attendance-row">
-            <td colspan="4" class="text-center">الرجاء اختيار حصة لعرض سجل الحضور.</td>
-          </tr>
-          <!-- Attendance rows will be populated here by JavaScript -->
-        </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6">
-    <div class="card mt-4">
-      <div class="card-header">
-        <h2 class="card-title mb-0">سجل الغياب للحصة المختارة</h2>
-      </div>
-      <div class="card-body">
-        <div class="table-container">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>اسم الطالب</th>
-                <th>الحالة</th>
-                <th>ملاحظات</th>
-                {# Add an action column if needed for excused absences later #}
-              </tr>
-            </thead>
-            <tbody id="absence-record-tbody">
-              <tr id="no-absence-row">
-                <td colspan="3" class="text-center">الرجاء اختيار حصة لعرض سجل الغياب.</td>
-              </tr>
-              <!-- Absence rows will be populated here by JavaScript -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 
 <!-- Teacher Attendance Confirmation Modal (will be created dynamically) -->

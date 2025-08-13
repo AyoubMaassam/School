@@ -13,6 +13,7 @@ urlpatterns = [
     path('students/<int:student_id>/edit/', views.edit_student, name='edit_student'),
     path('students/<int:student_id>/delete/', views.delete_student, name='delete_student'),
     path('students/<int:student_id>/enroll/', views.enroll_student_in_groups, name='enroll_student_in_groups'),
+    path('students/<int:student_id>/attendance/<int:attendance_id>/excuse/', views.mark_absence_excused, name='mark_absence_excused'),
     path('students/<int:student_id>/print_registration_confirmation/', views.print_registration_fee_confirmation, name='print_registration_confirmation'),
     path('students/<int:student_id>/monthly_payment/', views.student_monthly_payment_view, name='student_monthly_payment'),
     path('students/<int:student_id>/group/<int:group_id>/print_receipt/', views.print_student_payment_receipt, name='print_student_payment_receipt'),
@@ -39,6 +40,7 @@ urlpatterns = [
     path('sessions/<int:session_id>/edit/', views.edit_session, name='edit_session'),
     path('sessions/<int:session_id>/delete/', views.delete_session, name='delete_session'),
     path('sessions/<int:session_id>/manage_attendance/', views.manage_session_attendance, name='manage_session_attendance'),
+    path('sessions/<int:session_id>/attendance_detail/', views.session_attendance_detail, name='session_attendance_detail'),
     
     # Attendance routes
     path('attendance/', views.attendance_register, name='attendance_register'),

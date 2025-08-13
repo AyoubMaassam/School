@@ -79,7 +79,7 @@ class Group(models.Model):
     ], verbose_name="يوم الحصة")
     session_start_time = models.TimeField(verbose_name="وقت بداية الحصة")
     session_duration = models.DecimalField(max_digits=4, decimal_places=2, default=1.5, verbose_name="مدة الحصة (ساعات)")
-    students = models.ManyToManyField(Student, blank=True, verbose_name="الطلاب المسجلون")
+    students = models.ManyToManyField(Student, through='StudentGroup', blank=True, verbose_name="الطلاب المسجلون")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     is_continuous = models.BooleanField(default=False, verbose_name="فوج مستمر (تُنشأ الحصص أسبوعياً تلقائياً)")
     created_sessions_until = models.DateField(null=True, blank=True, verbose_name="تم إنشاء الحصص حتى تاريخ")
@@ -90,6 +90,20 @@ class Group(models.Model):
     class Meta:
         verbose_name = "فوج"
         verbose_name_plural = "الأفواج"
+
+
+class StudentGroup(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, verbose_name="الطالب")
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, verbose_name="الفوج")
+    enrollment_date = models.DateField(auto_now_add=True, verbose_name="تاريخ التسجيل في الفوج")
+
+    class Meta:
+        unique_together = ('student', 'group')
+        verbose_name = "تسجيل طالب في فوج"
+        verbose_name_plural = "تسجيلات الطلاب في الأفواج"
+
+    def __str__(self):
+        return f"{self.student} enrolled in {self.group} on {self.enrollment_date}"
 
 class Session(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='sessions', verbose_name="الفوج")
