@@ -17,6 +17,7 @@ urlpatterns = [
     path('students/<int:student_id>/print_registration_confirmation/', views.print_registration_fee_confirmation, name='print_registration_confirmation'),
     path('students/<int:student_id>/monthly_payment/', views.student_monthly_payment_view, name='student_monthly_payment'),
     path('students/<int:student_id>/group/<int:group_id>/print_receipt/', views.print_student_payment_receipt, name='print_student_payment_receipt'),
+    path('students/<int:student_id>/print_barcode/', views.print_student_barcode, name='print_student_barcode'),
     
     # Teacher routes
     path('teachers/', views.teacher_list, name='teacher_list'),

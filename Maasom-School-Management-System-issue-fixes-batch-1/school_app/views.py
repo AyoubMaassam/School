@@ -2078,6 +2078,10 @@ def api_get_group_students(request, group_id):
 from django.views.decorators.csrf import csrf_exempt
 import json
 from django.views.decorators.http import require_POST
+import barcode
+from barcode.writer import ImageWriter
+from io import BytesIO
+import base64
 
 @require_POST
 def mark_absence_excused(request, student_id, attendance_id):
@@ -2956,3 +2960,41 @@ def teacher_monthly_payment_view(request, teacher_id):
         'receipt_url': request.session.pop('last_teacher_payment_receipt_url', None)
     }
     return render(request, 'school_app/teacher_monthly_payment.html', context)
+
+
+def print_student_barcode(request, student_id):
+    student = get_object_or_404(Student, id=student_id)
+
+    if not student.card_number:
+        messages.error(request, "لا يوجد رقم بطاقة لهذا الطالب لإنشاء باركود.")
+        return redirect('student_detail', student_id=student.id)
+
+    # Generate barcode
+    Code128 = barcode.get_barcode_class('code128')
+    # The data to be encoded in the barcode
+    barcode_data = student.card_number
+
+    # Create a barcode instance with a writer to output as an image
+    # The writer options can be used to customize the barcode image
+    writer_options = {
+        'module_height': 15.0,
+        'font_size': 10,
+        'text_distance': 5.0,
+        'quiet_zone': 2.0,
+    }
+    code128_barcode = Code128(barcode_data, writer=ImageWriter())
+
+    # Write the barcode to an in-memory buffer
+    buffer = BytesIO()
+    code128_barcode.write(buffer, options=writer_options)
+
+    # Encode the image buffer to a base64 string
+    barcode_image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    context = {
+        'student': student,
+        'barcode_image_base64': barcode_image_base64,
+        'page_title': f"طباعة باركود للطالب: {student.first_name} {student.last_name}"
+    }
+
+    return render(request, 'school_app/print_student_barcode.html', context)
