@@ -5,92 +5,109 @@
     <title>وصل دفع</title>
     <style>
         body {
-            font-family: 'Tahoma', 'Arabic Typesetting', 'Times New Roman', serif;
+            font-family: 'Tahoma', 'Helvetica', 'Arial', sans-serif;
             width: 80mm;
             margin: 0 auto;
             padding: 10px;
-            font-size: 12pt;
+            direction: rtl;
+            font-size: 10pt;
         }
-        .receipt-container {
-            border: 1px solid #000;
-            padding: 15px;
+        .receipt-header {
             text-align: center;
-        }
-        .header {
-            font-weight: bold;
-            font-size: 14pt;
             margin-bottom: 10px;
         }
-        .line {
+        .receipt-header h1 {
+            font-size: 16pt;
+            margin: 0;
+        }
+        .receipt-header p {
+            margin: 2px 0;
+            font-size: 9pt;
+        }
+        .separator {
             border-top: 1px dashed #000;
             margin: 10px 0;
         }
-        .info-table {
+        .receipt-table {
             width: 100%;
-            text-align: right;
-            margin-top: 15px;
-            margin-bottom: 15px;
+            border-collapse: collapse;
         }
-        .info-table td {
-            padding: 5px;
+        .receipt-table td {
+            padding: 4px;
         }
-        .label {
+        .receipt-table .label {
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .receipt-table .value {
+            text-align: left;
+            width: 100%;
+        }
+        .footer-notes {
+            margin-top: 10px;
+            font-size: 9pt;
+        }
+        .footer-notes p {
+            margin: 2px 0;
+        }
+        .footer-thanks {
+            text-align: center;
+            margin-top: 10px;
             font-weight: bold;
         }
-        .footer-note {
-            margin-top: 10px;
-            font-size: 10pt;
-        }
-        .barcode-area {
-            border: 1px solid #ccc;
-            padding: 20px;
-            margin-top: 15px;
-            font-size: 10pt;
-            color: #555;
+        @media print {
+            body {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
         }
     </style>
 </head>
 <body onload="window.print();">
 
-    <div class="receipt-container">
-        <div class="header">جمعية النجوم الثقافية</div>
-        <div class="line"></div>
+    <div class="receipt-header">
+        <h1>⭐⭐ Maassam School ⭐⭐</h1>
+        <p>📞 الهاتف: 0795006735</p>
+        <p>📱 Telegram: t.me/MaassamSchool</p>
+        <p>📘 Facebook: /Maassam School</p>
+    </div>
 
-        <table class="info-table">
-            <tr>
-                <td class="label">اسم التلميذ:</td>
-                <td>{{ student.first_name }} {{ student.last_name }}</td>
-            </tr>
-            <tr>
-                <td class="label">الفوج:</td>
-                <td>{{ group.name }}</td>
-            </tr>
-            <tr>
-                <td class="label">سعر 4 حصص:</td>
-                <td>{{ group.price_per_4_sessions|floatformat:2 }} دج</td>
-            </tr>
-            <tr>
-                <td class="label">تاريخ الدفع:</td>
-                <td>{{ print_date|date:"Y / m / d" }}</td>
-            </tr>
-            <tr>
-                <td class="label">المبلغ المدفوع:</td>
-                <td>{{ amount_paid_cash_card|floatformat:2 }} دج</td>
-            </tr>
-        </table>
+    <div class="separator"></div>
 
-        <div class="line"></div>
-        <div class="footer-note">
-            <p>ملاحظة: الغيابات تُحسب على التلميذ.</p>
-            <p>نشكركم على الدراسة في مقر الجمعية.</p>
-        </div>
-        <div class="line"></div>
+    <table class="receipt-table">
+        <tr>
+            <td class="label">اسم التلميذ:</td>
+            <td class="value">{{ student.first_name }} {{ student.last_name }}</td>
+        </tr>
+        <tr>
+            <td class="label">الفوج:</td>
+            <td class="value">{{ group.name }}</td>
+        </tr>
+        <tr>
+            <td class="label">سعر 4 حصص:</td>
+            <td class="value">{{ group.price_per_4_sessions|floatformat:2 }} دج</td>
+        </tr>
+        <tr>
+            <td class="label">تاريخ الدفع:</td>
+            <td class="value">{{ print_date|date:"Y / m / d" }}</td>
+        </tr>
+        <tr>
+            <td class="label">المبلغ المدفوع:</td>
+            <td class="value">{{ amount_paid_cash_card|floatformat:2 }} دج</td>
+        </tr>
+    </table>
 
-        <div class="barcode-area">
-            [ مكان طباعة الرمز الشريطي ]
-            <br>
-            (Code Bar / Barcode Here)
-        </div>
+    <div class="separator"></div>
+
+    <div class="footer-notes">
+        <p><strong>ملاحظات:</strong></p>
+        <p>- الغيابات تُحسب على التلميذ.</p>
+        <p>- التسديد يكون في الحصة الأولى.</p>
+    </div>
+
+    <div class="footer-thanks">
+        <p>💬 نشكركم على التزامكم.</p>
     </div>
 
 </body>

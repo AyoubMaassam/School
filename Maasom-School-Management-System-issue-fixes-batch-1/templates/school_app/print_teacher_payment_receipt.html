@@ -10,14 +10,19 @@
             margin: 0 auto;
             padding: 10px;
             direction: rtl;
-            text-align: right;
             font-size: 10pt;
         }
         .receipt-header {
             text-align: center;
-            font-weight: bold;
-            font-size: 14pt;
             margin-bottom: 10px;
+        }
+        .receipt-header h1 {
+            font-size: 16pt;
+            margin: 0;
+        }
+        .receipt-header p {
+            margin: 2px 0;
+            font-size: 9pt;
         }
         .separator {
             border-top: 1px dashed #000;
@@ -28,19 +33,23 @@
             border-collapse: collapse;
         }
         .receipt-table td {
-            padding: 2px;
+            padding: 2px 4px;
         }
         .receipt-table .label {
-            font-weight: bold;
             white-space: nowrap;
-            padding-left: 10px;
         }
         .receipt-table .value {
             text-align: left;
+            width: 100%;
+        }
+        .total-amount {
+            font-size: 14pt;
+            font-weight: bold;
         }
         .footer-message {
             text-align: center;
             margin-top: 10px;
+            font-style: italic;
         }
         @media print {
             body {
@@ -48,60 +57,59 @@
                 margin: 0;
                 padding: 0;
             }
-            .no-print {
-                display: none;
-            }
         }
     </style>
 </head>
 <body onload="window.print();">
 
     <div class="receipt-header">
-        مدرسة معصم <br>
-        Maassam School
+        <h1>⭐⭐ Maassam School ⭐⭐</h1>
+        <p>📞 الهاتف: 0795006735</p>
+        <p>📱 Telegram: t.me/MaassamSchool</p>
+        <p>📘 Facebook: Maassam School</p>
     </div>
 
     <div class="separator"></div>
 
     <table class="receipt-table">
         <tr>
-            <td class="label">اسم الأستاذ:</td>
+            <td class="label"><strong>اسم الأستاذ:</strong></td>
             <td class="value">{{ teacher.first_name }} {{ teacher.last_name }}</td>
         </tr>
         <tr>
-            <td class="label">اسم الفوج:</td>
+            <td class="label"><strong>اسم الفوج:</strong></td>
             <td class="value">{{ group.name }}</td>
         </tr>
         <tr>
-            <td class="label">سعر الحصة الواحدة:</td>
+            <td class="label"><strong>سعر الحصة الواحدة:</strong></td>
             <td class="value">{{ price_per_instance }} دج</td>
         </tr>
         <tr>
-            <td class="label">عدد التلاميذ:</td>
-            <td class="value">{{ student_count }}</td>
-        </tr>
-        <tr>
-            <td class="label">عدد الحضور:</td>
-            <td class="value">{{ total_presences }}</td>
-        </tr>
-        <tr>
-            <td class="label">عدد الحصص:</td>
+            <td class="label"><strong>عدد الحصص:</strong></td>
             <td class="value">{{ total_sessions }}</td>
         </tr>
         <tr>
-            <td class="label">عدد الغيابات المحسوبة:</td>
+            <td class="label"><strong>عدد التلاميذ:</strong></td>
+            <td class="value">{{ student_count }}</td>
+        </tr>
+        <tr>
+            <td class="label"><strong>عدد الحضور:</strong></td>
+            <td class="value">{{ total_presences }}</td>
+        </tr>
+        <tr>
+            <td class="label"><strong>عدد الغيابات المحسوبة:</strong></td>
             <td class="value">{{ total_absences_counted }}</td>
         </tr>
         <tr>
-            <td class="label">عدد الغيابات المعذورة:</td>
+            <td class="label"><strong>عدد الغيابات المعذورة:</strong></td>
             <td class="value">{{ excused_absences_count }}</td>
         </tr>
         <tr>
-            <td class="label">المجموع الكلي:</td>
-            <td class="value">{{ total_payment_amount }} دج</td>
+            <td class="label"><strong>💰 المجموع الكلي:</strong></td>
+            <td class="value total-amount">{{ total_payment_amount }} دج</td>
         </tr>
         <tr>
-            <td class="label">تاريخ:</td>
+            <td class="label"><strong>تاريخ:</strong></td>
             <td class="value">{{ print_date|date:"Y-m-d H:i" }}</td>
         </tr>
     </table>
