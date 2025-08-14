@@ -104,7 +104,6 @@ def add_student(request):
 
         academic_level_id = request.POST.get('academic_level')
         registration_fee_paid = request.POST.get('registration_fee_paid') == 'on'
-        card_number = request.POST.get('card_number', '').strip()
 
         # Validation
         if not first_name: error_messages.append("الاسم الأول مطلوب.")
@@ -137,9 +136,6 @@ def add_student(request):
 
         if not academic_level_id: error_messages.append("المستوى الدراسي مطلوب.")
 
-        if card_number and Student.objects.filter(card_number=card_number).exists():
-            error_messages.append("رقم البطاقة المدخل مستخدم بالفعل. يرجى استخدام بطاقة أخرى.")
-
         academic_level = None
         if academic_level_id:
             try:
@@ -168,12 +164,9 @@ def add_student(request):
                 registration_fee_paid=registration_fee_paid
             )
             # Handle card number assignment
-            if card_number:
-                student.card_number = card_number
-            else:
-                # Generate a card number if not provided
-                current_year = datetime.date.today().year
-                student.card_number = f"CARD-{current_year}-{student.id:05d}"
+            # Generate a card number if not provided
+            current_year = datetime.date.today().year
+            student.card_number = f"CARD-{current_year}-{student.id:05d}"
             student.save()
             # log_action call removed for add_student
 
