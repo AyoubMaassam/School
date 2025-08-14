@@ -61,6 +61,7 @@ urlpatterns = [
     path('api/sessions/', views.api_sessions, name='api_sessions'),
     path('api/attendance/record/', views.api_record_attendance, name='api_record_attendance'),
     path('api/attendance/record_by_student/', views.api_record_attendance_by_student, name='api_record_attendance_by_student'),
+    path('api/attendance/record_bulk/', views.api_record_bulk_attendance, name='api_record_bulk_attendance'),
     path('api/session/<int:session_id>/attendance/', views.api_get_session_attendance, name='api_get_session_attendance'),
     path('api/group/<int:group_id>/students/', views.api_get_group_students, name='api_get_group_students'),
     path('api/attendance/cancel/', views.api_cancel_attendance, name='api_cancel_attendance'),

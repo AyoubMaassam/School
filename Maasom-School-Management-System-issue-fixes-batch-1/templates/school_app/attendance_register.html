@@ -58,26 +58,20 @@
 
 
 
-<!-- Teacher Attendance Confirmation Modal (will be created dynamically) -->
-<div id="teacher-confirmation-modal" class="modal" style="display: none;">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>تأكيد حضور المدرس</h3>
-      <span class="close">&times;</span>
+<!-- Multiple Sessions Modal -->
+<div id="multiple-sessions-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">حصص متعددة متاحة</h3>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body" id="modal-body-content">
+            <!-- Session list will be injected here -->
+        </div>
+        <div class="modal-footer">
+            <button id="confirm-sessions-btn" class="btn btn-primary">تأكيد الحضور</button>
+        </div>
     </div>
-    <div class="modal-body">
-      <p>هل حضر المدرس للحصة؟</p>
-      <div class="group-info">
-        <p>الفوج: <span id="confirmation-group-name"></span></p>
-        <p>المدرس: <span id="confirmation-teacher-name"></span></p>
-        <p>الوقت: <span id="confirmation-session-time"></span></p>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button id="teacher-present" class="btn btn-success">نعم، حضر</button>
-      <button id="teacher-absent" class="btn btn-danger">لا، لم يحضر</button>
-    </div>
-  </div>
 </div>
 {% endblock %}
 
@@ -163,7 +157,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const data = await response.json();
 
-            if (response.ok) {
+            if (data.status === 'multiple_sessions_found') {
+                displaySessionChoiceModal(data.sessions, data.student_id);
+            } else if (response.ok) {
                 showNotification(`${data.message}`, 'success', 1500);
                 if (data.payment_status_message) {
                     setTimeout(() => {
@@ -178,9 +174,87 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error recording attendance:', error);
             showNotification('فشل الاتصال بالخادم.', 'error', 3000);
         } finally {
+            if (document.getElementById('multiple-sessions-modal').style.display !== 'block') {
+                scanInput.value = '';
+                scanInput.disabled = false;
+                scanInput.focus();
+            }
+        }
+    }
+
+    function displaySessionChoiceModal(sessions, studentId) {
+        const modal = document.getElementById('multiple-sessions-modal');
+        const modalBody = document.getElementById('modal-body-content');
+        const confirmBtn = document.getElementById('confirm-sessions-btn');
+        const closeModalBtn = modal.querySelector('.close-modal');
+
+        modalBody.innerHTML = '<p>الرجاء تحديد الحصص التي سيحضرها الطالب:</p>';
+        const form = document.createElement('form');
+        sessions.forEach(session => {
+            const div = document.createElement('div');
+            div.className = 'form-check';
+            div.innerHTML = `
+                <input class="form-check-input" type="checkbox" value="${session.id}" id="session-${session.id}">
+                <label class="form-check-label" for="session-${session.id}">
+                    ${session.group_name} - ${session.subject_name} (${session.start_time})
+                </label>
+            `;
+            form.appendChild(div);
+        });
+        modalBody.appendChild(form);
+
+        modal.style.display = 'block';
+
+        const closeAndReset = () => {
+            modal.style.display = 'none';
+            modalBody.innerHTML = '';
             scanInput.value = '';
             scanInput.disabled = false;
             scanInput.focus();
+        }
+
+        closeModalBtn.onclick = closeAndReset;
+
+        confirmBtn.onclick = async () => {
+            const selectedSessions = [];
+            form.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedSessions.push(checkbox.value);
+            });
+
+            if (selectedSessions.length === 0) {
+                showNotification('الرجاء اختيار حصة واحدة على الأقل.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/attendance/record_bulk/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        session_ids: selectedSessions
+                    }),
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.message || 'خطأ في تسجيل الحضور', 'error');
+                }
+            } catch (error) {
+                showNotification('فشل الاتصال بالخادم.', 'error');
+            } finally {
+                closeAndReset();
+            }
+        };
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeAndReset();
+            }
         }
     }
 

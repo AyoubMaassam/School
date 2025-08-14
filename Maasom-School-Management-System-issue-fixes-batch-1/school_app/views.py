@@ -2125,6 +2125,52 @@ def api_cancel_attendance(request):
 
 @csrf_exempt
 @require_POST
+def api_record_bulk_attendance(request):
+    try:
+        data = json.loads(request.body)
+        student_id = data.get('student_id')
+        session_ids = data.get('session_ids')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'بيانات JSON غير صالحة.'}, status=400)
+
+    if not student_id or not session_ids or not isinstance(session_ids, list):
+        return JsonResponse({'status': 'error', 'message': 'معرف الطالب وقائمة بمعرفات الحصص مطلوبان.'}, status=400)
+
+    try:
+        student = Student.objects.get(id=student_id)
+        sessions = Session.objects.filter(id__in=session_ids)
+
+        if len(session_ids) != sessions.count():
+             return JsonResponse({'status': 'error', 'message': 'تم العثور على معرفات حصص غير صالحة.'}, status=400)
+
+        created_count = 0
+        already_exist_count = 0
+        for session in sessions:
+            _, created = Attendance.objects.get_or_create(
+                student=student,
+                session=session,
+                defaults={'present': True, 'student_paid_for_session': False}
+            )
+            if created:
+                created_count += 1
+            else:
+                already_exist_count += 1
+
+        message = f"تم تسجيل حضور {created_count} حصص بنجاح."
+        if already_exist_count > 0:
+            message += f" {already_exist_count} حصص كانت مسجلة بالفعل."
+
+        return JsonResponse({'status': 'success', 'message': message})
+
+    except Student.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'الطالب غير موجود.'}, status=404)
+    except Exception as e:
+        logger.error(f"Error in bulk attendance recording: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'حدث خطأ غير متوقع.'}, status=500)
+
+
+@csrf_exempt
+@require_POST
 def api_record_attendance_by_student(request):
     try:
         data = json.loads(request.body)
@@ -2171,8 +2217,25 @@ def api_record_attendance_by_student(request):
     if not potential_sessions:
         return JsonResponse({'status': 'error', 'message': 'لا توجد حصة نشطة لهذا الطالب في الوقت الحالي.'}, status=404)
 
-    # Find the session with the minimum time difference (the nearest one)
-    potential_sessions.sort(key=lambda x: x[0])
+    # If there are multiple potential sessions, return them for user selection
+    if len(potential_sessions) > 1:
+        sessions_data = []
+        for time_diff, session in potential_sessions:
+            sessions_data.append({
+                'id': session.id,
+                'group_name': session.group.name,
+                'subject_name': session.group.subject.name,
+                'date': session.date.strftime('%Y-%m-%d'),
+                'start_time': session.start_time.strftime('%H:%M'),
+            })
+        return JsonResponse({
+            'status': 'multiple_sessions_found',
+            'message': 'تم العثور على عدة حصص. يرجى اختيار الحصة المطلوبة.',
+            'sessions': sessions_data,
+            'student_id': student.id
+        })
+
+    # If only one session is found, proceed to register attendance automatically
     target_session = potential_sessions[0][1]
 
     # Check for existing attendance
