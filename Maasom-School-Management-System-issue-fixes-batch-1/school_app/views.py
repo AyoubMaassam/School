@@ -2718,64 +2718,35 @@ def print_teacher_payment_receipt(request, teacher_id, group_id):
     # Retrieve details from GET parameters
     total_payment_amount_str = request.GET.get('amount_paid', '0')
     price_per_instance_str = request.GET.get('price_per_session', '0')
-    total_presences_str = request.GET.get('total_presences', '0') # Total student presences that contributed to payment
-    total_absences_counted_str = request.GET.get('total_absences_counted', '0') # Total absences counted for payment
-    effective_instances_str = request.GET.get('effective_instances', '0') # Sum of presences and counted absences
-    session_ids_str = request.GET.get('session_ids', '') # IDs of teacher-attended sessions that were paid for
+    total_presences_str = request.GET.get('total_presences', '0')
+    total_absences_counted_str = request.GET.get('total_absences_counted', '0')
+    session_ids_str = request.GET.get('session_ids', '')
+    student_count_str = request.GET.get('student_count', '0')
+    total_sessions_str = request.GET.get('total_sessions', '0')
+    excused_absences_count_str = request.GET.get('excused_absences_count', '0')
 
     try:
         total_payment_amount = Decimal(total_payment_amount_str)
         price_per_instance = Decimal(price_per_instance_str)
-        total_student_presences_paid_for = int(total_presences_str)
-        total_absences_counted_for_payment = int(total_absences_counted_str)
-        total_effective_paid_instances = int(effective_instances_str)
+        total_presences = int(total_presences_str)
+        total_absences_counted = int(total_absences_counted_str)
+        student_count = int(student_count_str)
+        total_sessions = int(total_sessions_str)
+        excused_absences_count = int(excused_absences_count_str)
     except (ValueError, TypeError):
         messages.error(request, "بيانات الإيصال غير صالحة.")
         return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + f"?group_id={group_id}")
-
-    # Fetch teacher-attended sessions for which payment is made
-    compensated_session_objects = []
-    if session_ids_str:
-        try:
-            session_ids = [int(sid) for sid in session_ids_str.split(',') if sid.isdigit()]
-            compensated_session_objects = Session.objects.filter(id__in=session_ids, group=group).prefetch_related('attendance_set__student').order_by('date', 'start_time')
-        except ValueError:
-            pass # Keep list empty
-
-    compensated_sessions_data_for_receipt = []
-    for session_obj in compensated_session_objects:
-        # For each compensated session, get the breakdown of presences and counted absences
-        # This part might need to fetch details from how it was calculated, or re-calculate if not passed via GET.
-        # For simplicity, we're primarily displaying the totals passed via GET.
-        # The detailed per-session student breakdown is shown on the main payment page.
-        # Here we can show a summary for each session if needed, or rely on totals.
-
-        # Example: if you had stored the detailed_breakdown from calculate_payment in session and passed its relevant part:
-        # For now, we'll just list the sessions the teacher is being compensated for.
-        # The main financial details are the totals passed via GET.
-
-        # Re-calculating student counts for this specific receipt context (present, excused, unexcused)
-        students_present_count = session_obj.attendance_set.filter(present=True).count()
-        students_absent_unexcused_count = session_obj.attendance_set.filter(present=False, excused_absence=False).count()
-        students_absent_excused_count = session_obj.attendance_set.filter(present=False, excused_absence=True).count()
-
-        compensated_sessions_data_for_receipt.append({
-            'date': session_obj.date,
-            'start_time': session_obj.start_time,
-            'students_present_count': students_present_count,
-            'students_absent_unexcused_count': students_absent_unexcused_count,
-            'students_absent_excused_count': students_absent_excused_count,
-        })
 
     context = {
         'teacher': teacher,
         'group': group,
         'total_payment_amount': total_payment_amount,
         'price_per_instance': price_per_instance,
-        'total_student_presences_paid_for': total_student_presences_paid_for,
-        'total_absences_counted_for_payment': total_absences_counted_for_payment,
-        'total_effective_paid_instances': total_effective_paid_instances,
-        'compensated_sessions_data': compensated_sessions_data_for_receipt, # Renamed for clarity
+        'total_presences': total_presences,
+        'total_absences_counted': total_absences_counted,
+        'student_count': student_count,
+        'total_sessions': total_sessions,
+        'excused_absences_count': excused_absences_count,
         'print_date': timezone.now(),
     }
     return render(request, 'school_app/print_teacher_payment_receipt.html', context)
@@ -2908,6 +2879,15 @@ def teacher_monthly_payment_view(request, teacher_id):
                     )
                     messages.success(request, f"تم تسجيل دفع المستحقات لـ {compensated_count} حصة بنجاح. المبلغ الإجمالي: {final_payment_amount} دج.")
 
+                    # --- New data for receipt ---
+                    student_count = current_group_post.students.count()
+                    excused_absences_count = Attendance.objects.filter(
+                        session_id__in=session_ids_to_mark_compensated,
+                        excused_absence=True
+                    ).count()
+                    total_sessions_paid = len(session_ids_to_mark_compensated)
+                    # --- End new data for receipt ---
+
                     # Generate receipt URL
                     receipt_url = reverse('print_teacher_payment_receipt', args=[teacher_id, current_group_post.id]) + \
                                   f"?amount_paid={final_payment_amount}" + \
@@ -2915,7 +2895,11 @@ def teacher_monthly_payment_view(request, teacher_id):
                                   f"&total_presences={payment_details_to_process.get('total_presences',0)}" + \
                                   f"&total_absences_counted={payment_details_to_process.get('total_unexcused_absences_for_payment',0)}" + \
                                   f"&effective_instances={payment_details_to_process.get('total_payable_instances',0)}" + \
-                                  f"&session_ids={','.join(session_ids_to_mark_compensated)}"
+                                  f"&session_ids={','.join(session_ids_to_mark_compensated)}" + \
+                                  f"&student_count={student_count}" + \
+                                  f"&total_sessions={total_sessions_paid}" + \
+                                  f"&excused_absences_count={excused_absences_count}"
+
                     request.session['last_teacher_payment_receipt_url'] = receipt_url
                 else:
                     messages.info(request, "لم يتم تحديث أي حصص كمدفوعة. قد تكون دفعت مسبقاً أو لم يتم تحديد حصص صالحة.")

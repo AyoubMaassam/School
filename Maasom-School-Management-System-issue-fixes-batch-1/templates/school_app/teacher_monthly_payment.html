@@ -17,6 +17,15 @@
         {% endfor %}
     {% endif %}
 
+    {% if receipt_url %}
+    <div class="alert alert-success text-center my-3">
+        <p>يمكنك الآن طباعة وصل الدفع للمدرس.</p>
+        <a href="{{ receipt_url }}" target="_blank" class="btn btn-info">
+            <i class="fas fa-print"></i> طباعة الوصل
+        </a>
+    </div>
+    {% endif %}
+
     <div class="card mb-4">
         <div class="card-header">
             <h3 class="card-title">معلومات المدرس</h3>
