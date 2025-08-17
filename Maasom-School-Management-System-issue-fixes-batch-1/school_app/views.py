@@ -2164,11 +2164,22 @@ def api_record_attendance_by_student(request):
     if not student_identifier:
         return JsonResponse({'status': 'error', 'message': 'معرف الطالب مطلوب.'}, status=400)
 
-    # Find the student by ID (from QR code)
+    # Find the student by ID or Card Number
     student = None
-    if isinstance(student_identifier, int) or student_identifier.isdigit():
+    if isinstance(student_identifier, int) or (isinstance(student_identifier, str) and student_identifier.isdigit()):
         try:
             student = Student.objects.get(pk=int(student_identifier))
+        except Student.DoesNotExist:
+            pass
+
+    if not student and isinstance(student_identifier, str):
+        try:
+            student = Student.objects.get(card_number=student_identifier)
+        except Student.DoesNotExist:
+            pass
+    elif not student and isinstance(student_identifier, int):
+        try:
+            student = Student.objects.get(card_number=str(student_identifier))
         except Student.DoesNotExist:
             pass
 
