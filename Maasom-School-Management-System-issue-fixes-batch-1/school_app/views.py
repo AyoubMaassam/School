@@ -2648,7 +2648,7 @@ def student_monthly_payment_view(request, student_id):
         'student_prepaid_balance': student_prepaid_balance,
         'attended_but_not_paid_sessions_count': attended_but_not_paid_sessions_count,
         'prepaid_sessions_count': prepaid_sessions_count,
-        'page_title': f"الدفع الشهري للطالب: {student.first_name} {student.last_name}",
+        'page_title': page_title,
         'receipt_url': receipt_url_from_session,
     }
     return render(request, 'school_app/student_monthly_payment.html', context)
@@ -2747,7 +2747,7 @@ def teacher_monthly_payment_view(request, teacher_id):
     sessions_to_display = []
     calculated_payment_details = request.session.get('calculated_teacher_payment_details', None)
 
-    page_title = f"الدفع الشهري للمدرس: {teacher.first_name} {teacher.last_name}"
+    page_title = f"الدفع الشهري للمدرس: {teacher.full_name}"
 
     if request.method == 'GET':
         if selected_group_id and teacher_price_per_session_str:
@@ -2773,7 +2773,7 @@ def teacher_monthly_payment_view(request, teacher_id):
                             enrollment_date = student_enrollment_dates.get(student_in_group.id)
                             if enrollment_date and session_obj.date < enrollment_date:
                                 student_statuses.append({
-                                    'id': student_in_group.id, 'name': f"{student_in_group.first_name} {student_in_group.last_name}",
+                                    'id': student_in_group.id, 'name': student_in_group.full_name,
                                     'status': "قبل الالتحاق", 'attendance_id': None, 'is_excused': False,
                                     'is_present': False, 'not_yet_enrolled_for_session': True
                                 })
@@ -2787,7 +2787,7 @@ def teacher_monthly_payment_view(request, teacher_id):
                             if attendance.present: status_display = "حاضر"
                             elif attendance.excused_absence: status_display = "غائب (معذور)"
                             student_statuses.append({
-                                'id': student_in_group.id, 'name': f"{student_in_group.first_name} {student_in_group.last_name}",
+                                'id': student_in_group.id, 'name': student_in_group.full_name,
                                 'status': status_display, 'attendance_id': attendance.id, 'is_excused': attendance.excused_absence,
                                 'is_present': attendance.present, 'not_yet_enrolled_for_session': False
                             })
@@ -2948,7 +2948,7 @@ def print_student_qr_code(request, student_id):
     context = {
         'student': student,
         'qr_code_image_base64': qr_code_image_base64,
-        'page_title': f"طباعة QR Code للطالب: {student.first_name} {student.last_name}"
+        'page_title': f"طباعة QR Code للطالب: {student.full_name}"
     }
 
     return render(request, 'school_app/print_student_qr_code.html', context)
