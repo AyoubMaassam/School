@@ -2075,6 +2075,7 @@ import barcode
 from barcode.writer import ImageWriter
 from io import BytesIO
 import base64
+import qrcode
 
 @require_POST
 def mark_absence_excused(request, student_id, attendance_id):
@@ -2178,17 +2179,13 @@ def api_record_attendance_by_student(request):
     if not student_identifier:
         return JsonResponse({'status': 'error', 'message': 'معرف الطالب مطلوب.'}, status=400)
 
-    # Find the student by ID, card number, or name
+    # Find the student by ID (from QR code)
     student = None
     if isinstance(student_identifier, int) or student_identifier.isdigit():
-        student = Student.objects.filter(Q(pk=int(student_identifier)) | Q(card_number=str(student_identifier))).first()
-    else:
-        # Search by name (first name, last name, or full name)
-        parts = student_identifier.split()
-        if len(parts) > 1:
-            student = Student.objects.filter(first_name__iexact=parts[0], last_name__iexact=parts[1]).first()
-        if not student:
-            student = Student.objects.filter(Q(first_name__iexact=student_identifier) | Q(last_name__iexact=student_identifier)).first()
+        try:
+            student = Student.objects.get(pk=int(student_identifier))
+        except Student.DoesNotExist:
+            pass
 
     if not student:
         return JsonResponse({'status': 'error', 'message': 'الطالب غير موجود.'}, status=404)
@@ -2939,38 +2936,32 @@ def teacher_monthly_payment_view(request, teacher_id):
     return render(request, 'school_app/teacher_monthly_payment.html', context)
 
 
-def print_student_barcode(request, student_id):
+def print_student_qr_code(request, student_id):
     student = get_object_or_404(Student, id=student_id)
 
-    if not student.card_number:
-        messages.error(request, "لا يوجد رقم بطاقة لهذا الطالب لإنشاء باركود.")
-        return redirect('student_detail', student_id=student.id)
+    # Generate QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(student.id)
+    qr.make(fit=True)
 
-    # Generate barcode
-    Code128 = barcode.get_barcode_class('code128')
-    # The data to be encoded in the barcode
-    barcode_data = student.card_number
+    img = qr.make_image(fill_color="black", back_color="white")
 
-    # Create a barcode instance with a writer to output as an image
-    # The writer options can be used to customize the barcode image
-    writer_options = {
-        'module_height': 10.0,
-        'write_text': False,
-        'quiet_zone': 1.0,
-    }
-    code128_barcode = Code128(barcode_data, writer=ImageWriter())
-
-    # Write the barcode to an in-memory buffer
+    # Write the QR code to an in-memory buffer
     buffer = BytesIO()
-    code128_barcode.write(buffer, options=writer_options)
+    img.save(buffer, format="PNG")
 
     # Encode the image buffer to a base64 string
-    barcode_image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    qr_code_image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
     context = {
         'student': student,
-        'barcode_image_base64': barcode_image_base64,
-        'page_title': f"طباعة باركود للطالب: {student.first_name} {student.last_name}"
+        'qr_code_image_base64': qr_code_image_base64,
+        'page_title': f"طباعة QR Code للطالب: {student.first_name} {student.last_name}"
     }
 
-    return render(request, 'school_app/print_student_barcode.html', context)
+    return render(request, 'school_app/print_student_qr_code.html', context)
