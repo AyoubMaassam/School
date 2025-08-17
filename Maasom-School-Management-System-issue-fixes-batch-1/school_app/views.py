@@ -1350,25 +1350,22 @@ def api_record_attendance(request):
     if not student:
         return JsonResponse({'status': 'error', 'message': 'الطالب غير موجود. تحقق من الرقم المدخل أو البطاقة.'}, status=404)
 
-    # Check if attendance already exists
-    if Attendance.objects.filter(session=session, student=student).exists():
-        # log_action call removed for api_record_attendance (already_exists)
-        return JsonResponse({
-            'status': 'already_registered',
-            'message': f'الطالب {student.full_name} مسجل بالفعل في هذه الحصة.',
-            'student_name': student.full_name,
-            'session_info': f'{session.group.name} - {session.date} {session.start_time.strftime("%H:%M")}'
-        }, status=200) # Using 200 as it's not an error, but a specific status
-
     try:
-        # For now, student_paid_for_session defaults to False.
-        # This logic will be updated in Issue 5 (Student Payment Page).
-        attendance = Attendance.objects.create(
-            session=session,
+        attendance, created = Attendance.objects.get_or_create(
             student=student,
-            present=True,
-            student_paid_for_session=False
+            session=session
         )
+
+        if not created and attendance.present:
+            return JsonResponse({
+                'status': 'already_registered',
+                'message': f'الطالب {student.full_name} مسجل بالفعل في هذه الحصة.',
+                'student_name': student.full_name,
+                'session_info': f'{session.group.name} - {session.date} {session.start_time.strftime("%H:%M")}'
+            }, status=200)
+
+        attendance.present = True
+        attendance.save()
 
         # Calculate unpaid sessions for the student in this group
         try:
@@ -1387,18 +1384,15 @@ def api_record_attendance(request):
                 excused_absence=False
             ).count()
 
-        # log_action call removed for api_record_attendance (success)
         return JsonResponse({
             'status': 'success',
             'message': 'تم تسجيل الحضور بنجاح.',
             'student_name': student.full_name,
             'session_info': f'{session.group.name} - {session.date} {session.start_time.strftime("%H:%M")}',
-            'payment_status': 'غير مدفوع (افتراضي)', # Placeholder
+            'payment_status': 'غير مدفوع (افتراضي)',
             'attendance_time': attendance.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             'unpaid_sessions_count': unpaid_sessions_count
         }, status=201)
-    except IntegrityError: # Should ideally be caught by the exists() check, but as a safeguard
-        return JsonResponse({'status': 'error', 'message': 'خطأ في التكامل، ربما سجل مكرر.'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'حدث خطأ غير متوقع: {str(e)}'}, status=500)
 
@@ -2228,33 +2222,25 @@ def api_record_attendance_by_student(request):
     # If only one session is found, proceed to register attendance automatically
     target_session = potential_sessions[0][1]
 
-    # Check for existing attendance
-    if Attendance.objects.filter(student=student, session=target_session).exists():
-        return JsonResponse({
-            'status': 'already_registered',
-            'message': f'الطالب {student.full_name} مسجل بالفعل في هذه الحصة.',
-            'student_name': student.full_name,
-            'session_info': f'{target_session.group.name} - {target_session.date}'
-        }, status=200)
-
-    # Create the attendance record
     try:
-        attendance = Attendance.objects.create(
+        attendance, created = Attendance.objects.get_or_create(
             student=student,
-            session=target_session,
-            present=True,
-            student_paid_for_session=False # Default, check payment status next
+            session=target_session
         )
 
-        # Check payment status
-        paid_for_session = False
-        # A simple check could be to see if there's a prepaid balance that can cover this session
-        price_per_session = target_session.group.price_per_4_sessions / 4 if target_session.group.price_per_4_sessions else 0
-        if student.prepaid_balance >= price_per_session > 0:
-             # This is a complex decision - should scanning auto-deduct from prepaid?
-             # For now, we just check if it *could* be paid, not auto-deduct.
-             # Let's assume for now we just check the `student_paid_for_session` flag which is False by default.
-             pass # `paid_for_session` remains False unless explicitly paid.
+        if not created and attendance.present:
+            # The student was already marked as present, this is a true "already registered" case
+            return JsonResponse({
+                'status': 'already_registered',
+                'message': f'الطالب {student.full_name} مسجل بالفعل في هذه الحصة.',
+                'student_name': student.full_name,
+                'session_info': f'{target_session.group.name} - {target_session.date}'
+            }, status=200)
+
+        # If the record was newly created OR if it existed but the student was marked absent,
+        # we now mark them as present.
+        attendance.present = True
+        attendance.save()
 
         # Calculate unpaid sessions for the student in this group
         try:
@@ -2287,7 +2273,7 @@ def api_record_attendance_by_student(request):
         }, status=201)
 
     except Exception as e:
-        logger.error(f"Error creating attendance for student {student.id} in session {target_session.id}: {e}")
+        logger.error(f"Error creating or updating attendance for student {student.id} in session {target_session.id}: {e}")
         return JsonResponse({'status': 'error', 'message': 'حدث خطأ أثناء تسجيل الحضور.'}, status=500)
 
 
