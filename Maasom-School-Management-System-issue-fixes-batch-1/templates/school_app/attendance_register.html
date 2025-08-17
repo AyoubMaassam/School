@@ -258,9 +258,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    let scanTimeout = null;
+    scanInput.addEventListener('input', function(event) {
+        clearTimeout(scanTimeout);
+        const identifier = scanInput.value.trim();
+
+        // We can check for a minimum length to avoid firing on every keystroke
+        // For example, if card numbers are at least 5 characters long.
+        if (identifier.length >= 5) {
+            scanTimeout = setTimeout(() => {
+                handleAttendanceScan();
+            }, 50); // Wait 50ms after the last input to ensure the full barcode is scanned
+        }
+    });
+
     scanInput.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
+            clearTimeout(scanTimeout); // Prevent double submission
             handleAttendanceScan();
         }
     });
