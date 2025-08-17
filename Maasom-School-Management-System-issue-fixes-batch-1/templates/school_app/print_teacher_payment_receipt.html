@@ -2,123 +2,58 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>وصل دفع مستحقات الأستاذ</title>
+    <title>وصل دفع مستحقات - {{ teacher.full_name }}</title>
     <style>
+        @page {
+            size: 58mm;
+            margin: 2mm;
+        }
         body {
-            font-family: 'Tahoma', 'Helvetica', 'Arial', sans-serif;
-            width: 80mm;
-            margin: 0 auto;
-            padding: 10px;
-            direction: rtl;
+            font-family: 'monospace', 'Courier New', Courier;
             font-size: 10pt;
-        }
-        .receipt-header {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .receipt-header h1 {
-            font-size: 16pt;
+            color: #000;
+            width: 58mm;
+            padding: 0;
             margin: 0;
+            direction: rtl;
         }
-        .receipt-header p {
-            margin: 2px 0;
-            font-size: 9pt;
-        }
-        .separator {
-            border-top: 1px dashed #000;
-            margin: 10px 0;
-        }
-        .receipt-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .receipt-table td {
-            padding: 2px 4px;
-        }
-        .receipt-table .label {
-            white-space: nowrap;
-        }
-        .receipt-table .value {
-            text-align: left;
-            width: 100%;
-        }
-        .total-amount {
-            font-size: 14pt;
-            font-weight: bold;
-        }
-        .footer-message {
-            text-align: center;
-            margin-top: 10px;
-            font-style: italic;
-        }
-        @media print {
-            body {
-                width: 100%;
-                margin: 0;
-                padding: 0;
-            }
+        pre {
+            font-family: 'monospace', 'Courier New', Courier;
+            font-size: 10pt;
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
     </style>
 </head>
 <body onload="window.print();">
 
-    <div class="receipt-header">
-        <h1>⭐⭐ Maassam School ⭐⭐</h1>
-        <p>📞 الهاتف: 0795006735</p>
-        <p>📱 Telegram: t.me/MaassamSchool</p>
-        <p>📘 Facebook: Maassam School</p>
-    </div>
+<pre>
+        Maassam School
+  الهاتف : 0795006735
+  فيسبوك: Maassam School
+  تلغرام: t.me/MaassamSchool
+  ---------------------------
 
-    <div class="separator"></div>
+  اسم الأستاذ   : {{ teacher.full_name }}
+  الفوج          : {{ group.name }}
+  سعر الحصة      : {{ price_per_instance|floatformat:0 }} دج
+  عدد الحصص      : {{ total_sessions }}
+  عدد التلاميذ   : {{ student_count }}
+  عدد الحضور     : {{ total_presences }}
+  الغيابات المحسوبة   : {{ total_absences_counted }}
+  الغيابات غير المحسوبة: {{ excused_absences_count }}
 
-    <table class="receipt-table">
-        <tr>
-            <td class="label"><strong>اسم الأستاذ:</strong></td>
-            <td class="value">{{ teacher.first_name }} {{ teacher.last_name }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>اسم الفوج:</strong></td>
-            <td class="value">{{ group.name }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>سعر الحصة الواحدة:</strong></td>
-            <td class="value">{{ price_per_instance }} دج</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>عدد الحصص:</strong></td>
-            <td class="value">{{ total_sessions }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>عدد التلاميذ:</strong></td>
-            <td class="value">{{ student_count }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>عدد الحضور:</strong></td>
-            <td class="value">{{ total_presences }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>عدد الغيابات المحسوبة:</strong></td>
-            <td class="value">{{ total_absences_counted }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>عدد الغيابات المعذورة:</strong></td>
-            <td class="value">{{ excused_absences_count }}</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>💰 المجموع الكلي:</strong></td>
-            <td class="value total-amount">{{ total_payment_amount }} دج</td>
-        </tr>
-        <tr>
-            <td class="label"><strong>تاريخ:</strong></td>
-            <td class="value">{{ print_date|date:"Y-m-d H:i" }}</td>
-        </tr>
-    </table>
+  ---------------------------
+  المجموع الكلي : {{ total_payment_amount|floatformat:0 }} دج
+  ---------------------------
 
-    <div class="separator"></div>
-    <div class="footer-message">
-        نشكركم على جهودكم وتفانيكم في العمل.
-    </div>
-    <div class="separator"></div>
+  التاريخ : {{ print_date|date:"d/m/Y H:i" }}
+
+  ---------------------------
+  نشكركم على جهودكم
+  وتفانيكم في العمل
+</pre>
 
 </body>
 </html>

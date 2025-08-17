@@ -2,113 +2,53 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>وصل دفع</title>
+    <title>وصل دفع - {{ student.full_name }}</title>
     <style>
+        @page {
+            size: 58mm;
+            margin: 2mm;
+        }
         body {
-            font-family: 'Tahoma', 'Helvetica', 'Arial', sans-serif;
-            width: 80mm;
-            margin: 0 auto;
-            padding: 10px;
-            direction: rtl;
+            font-family: 'monospace', 'Courier New', Courier;
             font-size: 10pt;
-        }
-        .receipt-header {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .receipt-header h1 {
-            font-size: 16pt;
+            color: #000;
+            width: 58mm;
+            padding: 0;
             margin: 0;
+            direction: rtl;
         }
-        .receipt-header p {
-            margin: 2px 0;
-            font-size: 9pt;
-        }
-        .separator {
-            border-top: 1px dashed #000;
-            margin: 10px 0;
-        }
-        .receipt-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .receipt-table td {
-            padding: 4px;
-        }
-        .receipt-table .label {
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        .receipt-table .value {
-            text-align: left;
-            width: 100%;
-        }
-        .footer-notes {
-            margin-top: 10px;
-            font-size: 9pt;
-        }
-        .footer-notes p {
-            margin: 2px 0;
-        }
-        .footer-thanks {
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        @media print {
-            body {
-                width: 100%;
-                margin: 0;
-                padding: 0;
-            }
+        pre {
+            font-family: 'monospace', 'Courier New', Courier;
+            font-size: 10pt;
+            margin: 0;
+            white-space: pre-wrap; /* To wrap long lines if any */
+            word-wrap: break-word; /* To break long words if any */
         }
     </style>
 </head>
 <body onload="window.print();">
 
-    <div class="receipt-header">
-        <h1>⭐⭐ Maassam School ⭐⭐</h1>
-        <p>📞 الهاتف: 0795006735</p>
-        <p>📱 Telegram: t.me/MaassamSchool</p>
-        <p>📘 Facebook: /Maassam School</p>
-    </div>
+<pre>
+        Maassam School
+  الهاتف : 0795006735
+  فيسبوك: Maassam School
+  تلغرام: t.me/MaassamSchool
+  ---------------------------
 
-    <div class="separator"></div>
+  اسم التلميذ   : {{ student.full_name }}
+  الفوج         : {{ group.name }}
+  سعر 4 حصص    : {{ group.price_per_4_sessions|floatformat:0 }} دج
+  تاريخ الدفع   : {{ print_date|date:"d/m/Y H:i" }}
+  المبلغ المدفوع: {{ amount_paid_cash_card|floatformat:0 }} دج
 
-    <table class="receipt-table">
-        <tr>
-            <td class="label">اسم التلميذ:</td>
-            <td class="value">{{ student.full_name }}</td>
-        </tr>
-        <tr>
-            <td class="label">الفوج:</td>
-            <td class="value">{{ group.name }}</td>
-        </tr>
-        <tr>
-            <td class="label">سعر 4 حصص:</td>
-            <td class="value">{{ group.price_per_4_sessions|floatformat:2 }} دج</td>
-        </tr>
-        <tr>
-            <td class="label">تاريخ الدفع:</td>
-            <td class="value">{{ print_date|date:"Y / m / d" }}</td>
-        </tr>
-        <tr>
-            <td class="label">المبلغ المدفوع:</td>
-            <td class="value">{{ amount_paid_cash_card|floatformat:2 }} دج</td>
-        </tr>
-    </table>
+  ---------------------------
+  ملاحظات:
+  - الغيابات تحسب على التلميذ
+  - التسديد يكون في الحصة الأولى
+  ---------------------------
 
-    <div class="separator"></div>
-
-    <div class="footer-notes">
-        <p><strong>ملاحظات:</strong></p>
-        <p>- الغيابات تُحسب على التلميذ.</p>
-        <p>- التسديد يكون في الحصة الأولى.</p>
-    </div>
-
-    <div class="footer-thanks">
-        <p>💬 نشكركم على التزامكم.</p>
-    </div>
+      نشكركم على التزامكم
+</pre>
 
 </body>
 </html>
