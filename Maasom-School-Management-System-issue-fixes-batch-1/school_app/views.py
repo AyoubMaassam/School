@@ -2933,7 +2933,7 @@ def print_student_qr_code(request, student_id):
         box_size=10,
         border=4,
     )
-    qr.add_data(student.id)
+    qr.add_data(student.card_number)
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
