@@ -191,26 +191,31 @@ def add_student(request):
 
 def search_student(request):
     query = request.GET.get('q', '').strip()
-    students_results = []
+    students_results = Student.objects.none()  # Start with an empty queryset
     page_title = "البحث عن طالب"
 
     if query:
         page_title = f"نتائج البحث عن: \"{query}\""
-        # Prepare query conditions
-        name_condition = Q(first_name__icontains=query) | Q(last_name__icontains=query)
 
+        # Build the query using Q objects for text-based fields
+        search_conditions = (
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(phone_number__icontains=query) |
+            Q(card_number__icontains=query)
+        )
+
+        # If query is a number, also try searching by ID
         if query.isdigit():
-            # If query is a number, also search by ID (pk)
-            # Ensure conversion to int for pk lookup if query is digit.
             try:
-                id_condition = Q(pk=int(query))
-                search_conditions = name_condition | id_condition
-            except ValueError: # Should not happen if isdigit() is true, but as a safeguard
-                search_conditions = name_condition
-        else:
-            search_conditions = name_condition
+                # Add the ID search to the existing conditions using OR
+                search_conditions |= Q(pk=int(query))
+            except ValueError:
+                # This case is unlikely given isdigit(), but good practice
+                pass
 
-        students_results = Student.objects.filter(search_conditions).select_related('academic_level').order_by('last_name', 'first_name')
+        # Using .distinct() to avoid duplicate results if a query matches multiple fields for the same student
+        students_results = Student.objects.filter(search_conditions).distinct().select_related('academic_level').order_by('last_name', 'first_name')
 
     context = {
         'query': query,
