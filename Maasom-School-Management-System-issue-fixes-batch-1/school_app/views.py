@@ -2955,8 +2955,7 @@ def print_student_barcode(request, student_id):
     # The writer options can be used to customize the barcode image
     writer_options = {
         'module_height': 15.0,
-        'font_size': 10,
-        'text_distance': 5.0,
+        'write_text': False,
         'quiet_zone': 2.0,
     }
     code128_barcode = Code128(barcode_data, writer=ImageWriter())

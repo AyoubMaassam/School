@@ -2,45 +2,46 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>{{ page_title }}</title>
+    <title>طباعة باركود الطالب</title>
     <style>
+        @page {
+            size: 58mm auto; /* Set page size for thermal printer */
+            margin: 2mm; /* Small margin */
+        }
         body {
-            font-family: 'Cairo', sans-serif;
+            font-family: 'Tahoma', 'Helvetica', 'Arial', sans-serif;
+            width: 54mm; /* Content width inside the 58mm paper with margins */
+            margin: 0;
+            padding: 0;
+            direction: rtl;
             text-align: center;
-            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         .barcode-container {
-            display: inline-block;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
+            display: block; /* Use block for centering */
+            margin-bottom: 5px; /* Space between barcode and name */
+        }
+        .barcode-container img {
+            max-width: 100%;
+            height: auto;
         }
         .student-name {
-            margin-top: 10px;
-            font-size: 1.2rem;
+            font-size: 11pt;
             font-weight: bold;
-        }
-        @media print {
-            body {
-                margin: 0;
-            }
-            .no-print {
-                display: none;
-            }
+            margin: 0;
+            padding: 0;
         }
     </style>
 </head>
-<body>
+<body onload="window.print();">
 
     <div class="barcode-container">
-        <img src="data:image/png;base64,{{ barcode_image_base64 }}" alt="Barcode for {{ student.card_number }}">
-        <div class="student-name">{{ student.first_name }} {{ student.last_name }}</div>
+        <img src="data:image/png;base64,{{ barcode_image_base64 }}" alt="Barcode">
     </div>
-
-    <div class="no-print" style="margin-top: 20px;">
-        <button onclick="window.print();" class="btn btn-primary">طباعة</button>
-        <a href="{% url 'student_detail' student.id %}" class="btn btn-secondary">العودة لملف الطالب</a>
-    </div>
+    <p class="student-name">{{ student.first_name }} {{ student.last_name }}</p>
 
 </body>
 </html>
