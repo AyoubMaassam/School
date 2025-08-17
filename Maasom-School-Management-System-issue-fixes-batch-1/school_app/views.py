@@ -2954,7 +2954,7 @@ def print_student_barcode(request, student_id):
     # Create a barcode instance with a writer to output as an image
     # The writer options can be used to customize the barcode image
     writer_options = {
-        'module_height': 15.0,
+        'module_height': 10.0,
         'write_text': False,
         'quiet_zone': 2.0,
     }

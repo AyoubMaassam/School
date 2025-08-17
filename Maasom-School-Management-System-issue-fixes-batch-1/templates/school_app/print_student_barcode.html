@@ -5,12 +5,13 @@
     <title>طباعة باركود الطالب</title>
     <style>
         @page {
-            size: 58mm auto; /* Set page size for thermal printer */
-            margin: 2mm; /* Small margin */
+            size: 58mm 40mm; /* Set page size for thermal printer */
+            margin: 1mm; /* Minimal margin */
         }
         body {
             font-family: 'Tahoma', 'Helvetica', 'Arial', sans-serif;
-            width: 54mm; /* Content width inside the 58mm paper with margins */
+            width: 56mm; /* Content width inside the 58mm paper */
+            height: 38mm;
             margin: 0;
             padding: 0;
             direction: rtl;
@@ -21,15 +22,15 @@
             align-items: center;
         }
         .barcode-container {
-            display: block; /* Use block for centering */
-            margin-bottom: 5px; /* Space between barcode and name */
+            width: 30mm; /* Set barcode width */
+            margin-bottom: 2mm; /* Space between barcode and name */
         }
         .barcode-container img {
             max-width: 100%;
             height: auto;
         }
         .student-name {
-            font-size: 11pt;
+            font-size: 9pt; /* Smaller font size for proportion */
             font-weight: bold;
             margin: 0;
             padding: 0;
