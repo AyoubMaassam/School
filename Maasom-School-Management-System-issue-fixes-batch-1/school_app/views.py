@@ -73,15 +73,14 @@ def student_list(request):
     students_qs = Student.objects.all()  # Start with all students
 
     if query:
-        # Search by first name, last name, phone number, or card number
+        # Search by full name, phone number, or card number
         students_qs = students_qs.filter(
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
+            Q(full_name__icontains=query) |
             Q(phone_number__icontains=query) |
             Q(card_number__icontains=query)
         )
 
-    students = students_qs.order_by('last_name', 'first_name') # Apply ordering after filtering
+    students = students_qs.order_by('full_name') # Apply ordering after filtering
     context = {
         'students': students,
         'page_title': 'قائمة الطلاب',
@@ -93,8 +92,7 @@ def add_student(request):
     academic_levels = AcademicLevel.objects.all().order_by('category', 'name') # Ensure consistent order
     if request.method == 'POST':
         error_messages = []
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
         guardian_phone = request.POST.get('guardian_phone', '').strip()
 
@@ -106,8 +104,7 @@ def add_student(request):
         registration_fee_paid = request.POST.get('registration_fee_paid') == 'on'
 
         # Validation
-        if not first_name: error_messages.append("الاسم الأول مطلوب.")
-        if not last_name: error_messages.append("اللقب مطلوب.")
+        if not full_name: error_messages.append("الاسم الكامل مطلوب.")
         if not phone_number: error_messages.append("رقم هاتف الطالب مطلوب.")
         # Basic phone validation (e.g., starts with 0, 10 digits) - adapt as needed
         if phone_number and (not phone_number.isdigit() or not len(phone_number) == 10 or not phone_number.startswith('0')):
@@ -153,8 +150,7 @@ def add_student(request):
         # If all validation passes
         try:
             student = Student.objects.create(
-                first_name=first_name,
-                last_name=last_name,
+                full_name=full_name,
                 phone_number=phone_number,
                 guardian_phone=guardian_phone,
                 birth_day=birth_day,
@@ -202,11 +198,9 @@ def search_student(request):
 
         # Name search logic
         query_words = query.split()
-        # Start with an empty Q object for ANDing
         name_conditions = Q()
         for word in query_words:
-            # Each word must be present in either the first or last name
-            name_conditions &= (Q(first_name__icontains=word) | Q(last_name__icontains=word))
+            name_conditions &= Q(full_name__icontains=word)
 
         # Also search by ID if the query is a number
         if query.isdigit():
@@ -218,7 +212,7 @@ def search_student(request):
         # Combine name search with other searches using OR
         final_conditions = name_conditions | other_conditions
 
-        students_results = Student.objects.filter(final_conditions).distinct().select_related('academic_level').order_by('last_name', 'first_name')
+        students_results = Student.objects.filter(final_conditions).distinct().select_related('academic_level').order_by('full_name')
 
     context = {
         'query': query,
@@ -336,7 +330,7 @@ def student_detail(request, student_id):
             'group_id': group.id,
             'group_name': group.name,
             'subject_name': group.subject.name,
-            'teacher_name': f"{group.teacher.first_name} {group.teacher.last_name}",
+            'teacher_name': group.teacher.full_name,
             'price_per_4_sessions': group.price_per_4_sessions,
             'total_sessions_in_group': total_sessions_in_group, # Based on sessions <= today
             'paid_sessions_count': paid_sessions_count,
@@ -362,7 +356,7 @@ def student_detail(request, student_id):
         'student': student,
         'enrolled_groups_with_payment_stats': enrolled_groups_with_payment_stats, # New context variable
         'attendance_records': attendance_records, # Kept for now
-        'page_title': f"ملف الطالب: {student.first_name} {student.last_name}"
+        'page_title': f"ملف الطالب: {student.full_name}"
     }
     return render(request, 'school_app/student_detail.html', context)
 
@@ -394,7 +388,7 @@ def enroll_student_in_groups(request, student_id):
                 messages.error(request, f"حدث خطأ أثناء تسجيل الطالب في الفوج {group_id_str}: {str(e)}")
 
         if enrolled_count > 0:
-            messages.success(request, f"تم تسجيل الطالب {student.first_name} {student.last_name} بنجاح في {enrolled_count} فوج/أفواج.")
+            messages.success(request, f"تم تسجيل الطالب {student.full_name} بنجاح في {enrolled_count} فوج/أفواج.")
 
         return redirect('student_detail', student_id=student.id)
 
@@ -416,14 +410,14 @@ def enroll_student_in_groups(request, student_id):
         'student': student,
         'available_groups': available_groups,
         'enrolled_groups': enrolled_groups, # Pass currently enrolled groups for display
-        'page_title': f"تسجيل الطالب {student.first_name} {student.last_name} في الأفواج"
+        'page_title': f"تسجيل الطالب {student.full_name} في الأفواج"
     }
     return render(request, 'school_app/enroll_student_in_groups.html', context)
 
 def delete_student(request, student_id):
     student = get_object_or_404(Student, id=student_id)
     if request.method == 'POST':
-        student_name = f"{student.first_name} {student.last_name}" # Get student name before deleting
+        student_name = student.full_name # Get student name before deleting
         student_id_for_log = student.id # Capture ID before deletion
         student.delete()
         messages.success(request, f"تم حذف الطالب {student_name} بنجاح.")
@@ -439,8 +433,7 @@ def edit_student(request, student_id):
 
     if request.method == 'POST':
         error_messages = []
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
         guardian_phone = request.POST.get('guardian_phone', '').strip()
 
@@ -454,8 +447,7 @@ def edit_student(request, student_id):
 
 
         # Validation (similar to add_student, adapt as needed)
-        if not first_name: error_messages.append("الاسم الأول مطلوب.")
-        if not last_name: error_messages.append("اللقب مطلوب.")
+        if not full_name: error_messages.append("الاسم الكامل مطلوب.")
         if not phone_number: error_messages.append("رقم هاتف الطالب مطلوب.")
         if phone_number and (not phone_number.isdigit() or not len(phone_number) == 10 or not phone_number.startswith('0')):
             error_messages.append("رقم هاتف الطالب غير صالح (يجب أن يكون 10 أرقام ويبدأ بـ 0).")
@@ -505,8 +497,7 @@ def edit_student(request, student_id):
 
         # If all validation passes
         try:
-            student.first_name = first_name
-            student.last_name = last_name
+            student.full_name = full_name
             student.phone_number = phone_number
             student.guardian_phone = guardian_phone
             student.birth_day = birth_day
@@ -536,8 +527,7 @@ def edit_student(request, student_id):
     else: # GET request
         # Pre-fill 'values' from the student object
         values = {
-            'first_name': student.first_name,
-            'last_name': student.last_name,
+            'full_name': student.full_name,
             'phone_number': student.phone_number,
             'guardian_phone': student.guardian_phone,
             'birth_day': student.birth_day,
@@ -551,7 +541,7 @@ def edit_student(request, student_id):
             'student': student,
             'academic_levels': academic_levels,
             'values': values,
-            'page_title': f"تعديل بيانات الطالب: {student.first_name} {student.last_name}"
+            'page_title': f"تعديل بيانات الطالب: {student.full_name}"
         }
         return render(request, 'school_app/edit_student.html', context)
 
@@ -591,14 +581,14 @@ def teacher_financial_detail(request, teacher_id):
         'teacher': teacher,
         'groups_with_uncompensated_sessions': groups_with_uncompensated_sessions,
         'total_uncompensated_sessions_count': total_uncompensated_sessions_count,
-        'page_title': f"التفاصيل المالية للمدرس: {teacher.first_name} {teacher.last_name}"
+        'page_title': f"التفاصيل المالية للمدرس: {teacher.full_name}"
     }
     return render(request, 'school_app/teacher_financial_detail.html', context)
 
 def delete_teacher(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     if request.method == 'POST':
-        teacher_name = f"{teacher.first_name} {teacher.last_name}"
+        teacher_name = teacher.full_name
         teacher_id_for_log = teacher.id # Capture ID before deletion
         try:
             # Deleting the teacher will now also delete associated groups
@@ -620,14 +610,12 @@ def edit_teacher(request, teacher_id):
 
     if request.method == 'POST':
         error_messages = []
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
         subject_id = request.POST.get('subject')
 
         # Validation
-        if not first_name: error_messages.append("الاسم الأول للمعلم مطلوب.")
-        if not last_name: error_messages.append("لقب المعلم مطلوب.")
+        if not full_name: error_messages.append("الاسم الكامل للمعلم مطلوب.")
         if not phone_number: error_messages.append("رقم هاتف المعلم مطلوب.")
         if phone_number and (not phone_number.isdigit() or not len(phone_number) == 10 or not phone_number.startswith('0')):
             error_messages.append("رقم هاتف المعلم غير صالح (يجب أن يكون 10 أرقام ويبدأ بـ 0).")
@@ -657,8 +645,7 @@ def edit_teacher(request, teacher_id):
 
         # If all validation passes
         try:
-            teacher.first_name = first_name
-            teacher.last_name = last_name
+            teacher.full_name = full_name
             teacher.phone_number = phone_number
             teacher.subject = subject_obj
             teacher.save()
@@ -682,8 +669,7 @@ def edit_teacher(request, teacher_id):
 
     else: # GET request
         values = {
-            'first_name': teacher.first_name,
-            'last_name': teacher.last_name,
+            'full_name': teacher.full_name,
             'phone_number': teacher.phone_number,
             'subject_id': teacher.subject.id if teacher.subject else ''
         }
@@ -691,7 +677,7 @@ def edit_teacher(request, teacher_id):
             'teacher': teacher,
             'subjects': subjects,
             'values': values,
-            'page_title': f"تعديل بيانات المعلم: {teacher.first_name} {teacher.last_name}"
+            'page_title': f"تعديل بيانات المعلم: {teacher.full_name}"
         }
         return render(request, 'school_app/edit_teacher.html', context)
 
@@ -701,12 +687,11 @@ def teacher_list(request):
 
     if query:
         teachers_qs = teachers_qs.filter(
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
+            Q(full_name__icontains=query) |
             Q(subject__name__icontains=query) # Search by subject name
         )
 
-    teachers = teachers_qs.order_by('last_name', 'first_name')
+    teachers = teachers_qs.order_by('full_name')
     context = {
         'teachers': teachers,
         'page_title': "قائمة المعلمين",
@@ -718,14 +703,12 @@ def add_teacher(request):
     subjects = Subject.objects.all().order_by('name') # Ensure consistent order
     if request.method == 'POST':
         error_messages = []
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
         phone_number = request.POST.get('phone_number', '').strip()
         subject_id = request.POST.get('subject')
 
         # Validation
-        if not first_name: error_messages.append("الاسم الأول للمعلم مطلوب.")
-        if not last_name: error_messages.append("لقب المعلم مطلوب.")
+        if not full_name: error_messages.append("الاسم الكامل للمعلم مطلوب.")
         if not phone_number: error_messages.append("رقم هاتف المعلم مطلوب.")
         if phone_number and (not phone_number.isdigit() or not len(phone_number) == 10 or not phone_number.startswith('0')):
             error_messages.append("رقم هاتف المعلم غير صالح (يجب أن يكون 10 أرقام ويبدأ بـ 0).")
@@ -748,12 +731,11 @@ def add_teacher(request):
 
         try:
             new_teacher = Teacher.objects.create(
-                first_name=first_name,
-                last_name=last_name,
+                full_name=full_name,
                 phone_number=phone_number,
                 subject=subject
             )
-            log_action('teacher_added', f"{new_teacher.first_name} {new_teacher.last_name}", f"تم إنشاء المدرس {new_teacher.first_name} {new_teacher.last_name}.")
+            log_action('teacher_added', f"{new_teacher.full_name}", f"تم إنشاء المدرس {new_teacher.full_name}.")
             return redirect('teacher_list')
         except IntegrityError: # Specifically catch IntegrityError
             error_messages.append("رقم هاتف المعلم المدخل موجود مسبقاً. يرجى استخدام رقم آخر.")
@@ -784,8 +766,7 @@ def group_list(request):
         groups_qs = groups_qs.filter(
             Q(name__icontains=query) |
             Q(subject__name__icontains=query) |
-            Q(teacher__first_name__icontains=query) |
-            Q(teacher__last_name__icontains=query)
+            Q(teacher__full_name__icontains=query)
         )
 
     groups = groups_qs.order_by('name')
@@ -1374,8 +1355,8 @@ def api_record_attendance(request):
         # log_action call removed for api_record_attendance (already_exists)
         return JsonResponse({
             'status': 'already_registered',
-            'message': f'الطالب {student.first_name} {student.last_name} مسجل بالفعل في هذه الحصة.',
-            'student_name': f'{student.first_name} {student.last_name}',
+            'message': f'الطالب {student.full_name} مسجل بالفعل في هذه الحصة.',
+            'student_name': student.full_name,
             'session_info': f'{session.group.name} - {session.date} {session.start_time.strftime("%H:%M")}'
         }, status=200) # Using 200 as it's not an error, but a specific status
 
@@ -1410,7 +1391,7 @@ def api_record_attendance(request):
         return JsonResponse({
             'status': 'success',
             'message': 'تم تسجيل الحضور بنجاح.',
-            'student_name': f'{student.first_name} {student.last_name}',
+            'student_name': student.full_name,
             'session_info': f'{session.group.name} - {session.date} {session.start_time.strftime("%H:%M")}',
             'payment_status': 'غير مدفوع (افتراضي)', # Placeholder
             'attendance_time': attendance.created_at.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1424,7 +1405,7 @@ def api_record_attendance(request):
 # Payment views
 def student_payment(request, student_id):
     student = get_object_or_404(Student, id=student_id)
-    page_title = f"مدفوعات الطالب: {student.first_name} {student.last_name}"
+    page_title = f"مدفوعات الطالب: {student.full_name}"
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1565,7 +1546,7 @@ def student_payment(request, student_id):
             'group_id': group.id,
             'group_name': group.name,
             'subject_name': group.subject.name,
-            'teacher_name': f"{group.teacher.first_name} {group.teacher.last_name}",
+            'teacher_name': group.teacher.full_name,
             'price_per_4_sessions': group.price_per_4_sessions,
             'total_sessions_in_group': group_total_sessions_count,
             'paid_session_count': group_paid_sessions_count,
@@ -1610,7 +1591,7 @@ TEACHER_PAY_PER_SESSION_AMOUNT = Decimal('500.00') # Placeholder flat rate
 
 def teacher_payment(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
-    page_title = f"دفع مستحقات المدرس: {teacher.first_name} {teacher.last_name}"
+    page_title = f"دفع مستحقات المدرس: {teacher.full_name}"
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1639,7 +1620,7 @@ def teacher_payment(request, teacher_id):
                         updated_count += 1
 
                     if updated_count > 0:
-                        messages.success(request, f"تم تسجيل دفع مستحقات لـ {updated_count} حصة/حصص للمدرس {teacher.first_name} في الفوج {group_to_compensate_for.name}.")
+                        messages.success(request, f"تم تسجيل دفع مستحقات لـ {updated_count} حصة/حصص للمدرس {teacher.full_name} في الفوج {group_to_compensate_for.name}.")
                         # log_action call removed for teacher_payment
                     else:
                         messages.info(request, "لا توجد حصص مستحقة للدفع حالياً (تأكد من تسجيل حضور المدرس أولاً).")
@@ -1842,7 +1823,7 @@ def payment_report(request):
             income_by_group_data.append({
                 'name': group.name,
                 'subject_name': group.subject.name,
-                'teacher_name': f'{group.teacher.first_name} {group.teacher.last_name}',
+                'teacher_name': group.teacher.full_name,
                 'income': group_income
             })
 
@@ -1944,7 +1925,7 @@ def api_teachers(request):
     
     data = [{
         'id': teacher.id,
-        'name': f"{teacher.first_name} {teacher.last_name}",
+        'name': teacher.full_name,
         'subject': teacher.subject.name
     } for teacher in teachers]
     return JsonResponse(data, safe=False)
@@ -1954,14 +1935,12 @@ def api_students(request):
     query = request.GET.get('q')
     if query:
         students = students.filter(
-            first_name__icontains=query
-        ) | students.filter(
-            last_name__icontains=query
+            full_name__icontains=query
         )
     
     data = [{
         'id': student.id,
-        'name': f"{student.first_name} {student.last_name}",
+        'name': student.full_name,
         'academic_level': student.academic_level.name
     } for student in students]
     return JsonResponse(data, safe=False)
@@ -1973,7 +1952,7 @@ def api_groups(request):
         'id': group.id,
         'name': group.name,
         'subject': group.subject.name,
-        'teacher': f"{group.teacher.first_name} {group.teacher.last_name}",
+        'teacher': group.teacher.full_name,
         'student_count': group.students.count()
     } for group in groups]
     return JsonResponse(data, safe=False)
@@ -1995,7 +1974,7 @@ def api_sessions(request):
 
 def api_get_session_attendance(request, session_id):
     session = get_object_or_404(Session.objects.select_related('group'), id=session_id)
-    group_students = session.group.students.all().order_by('last_name', 'first_name')
+    group_students = session.group.students.all().order_by('full_name')
 
     # Get all attendance records for this session in one query
     session_attendance_records = Attendance.objects.filter(session=session).select_related('student')
@@ -2007,8 +1986,7 @@ def api_get_session_attendance(request, session_id):
 
         status_data = {
             'student_id': student.id,
-            'first_name': student.first_name,
-            'last_name': student.last_name,
+            'full_name': student.full_name,
             'paid': False,
             'present': False,
             'excused_absence': False,
@@ -2063,14 +2041,13 @@ def api_mark_all_absent(request, session_id):
 
 def api_get_group_students(request, group_id):
     group = get_object_or_404(Group, id=group_id)
-    students = group.students.all().order_by('last_name', 'first_name') #.select_related('academic_level') might be useful later
+    students = group.students.all().order_by('full_name') #.select_related('academic_level') might be useful later
 
     student_data_list = []
     for s in students:
         student_data_list.append({
             'id': s.id,
-            'first_name': s.first_name,
-            'last_name': s.last_name,
+            'full_name': s.full_name,
             # 'academic_level_name': s.academic_level.name if s.academic_level else None # Example for later
         })
 
@@ -2244,8 +2221,8 @@ def api_record_attendance_by_student(request):
     if Attendance.objects.filter(student=student, session=target_session).exists():
         return JsonResponse({
             'status': 'already_registered',
-            'message': f'الطالب {student.first_name} {student.last_name} مسجل بالفعل في هذه الحصة.',
-            'student_name': f'{student.first_name} {student.last_name}',
+            'message': f'الطالب {student.full_name} مسجل بالفعل في هذه الحصة.',
+            'student_name': student.full_name,
             'session_info': f'{target_session.group.name} - {target_session.date}'
         }, status=200)
 
@@ -2291,7 +2268,7 @@ def api_record_attendance_by_student(request):
         return JsonResponse({
             'status': 'success',
             'message': 'تم تسجيل الحضور بنجاح.',
-            'student_name': f'{student.first_name} {student.last_name}',
+            'student_name': student.full_name,
             'session_info': f'{target_session.group.name} - {target_session.date}',
             'payment_status_message': payment_status_message,
             'session_id': target_session.id,
@@ -2318,6 +2295,8 @@ def student_monthly_payment_view(request, student_id):
     attended_but_not_paid_sessions_count = 0
     prepaid_sessions_count = 0
     student_prepaid_balance = student.prepaid_balance # Explicitly for context
+
+    page_title = f"الدفع الشهري للطالب: {student.full_name}"
 
     if selected_group_id:
         try:
@@ -2641,7 +2620,7 @@ def student_monthly_payment_view(request, student_id):
                     student.save()
                     log_action(
                         'prepaid_balance_reduced',
-                        f"Student {student.id} - {student.first_name} {student.last_name}",
+                        f"Student {student.id} - {student.full_name}",
                         f"Reduced by {amount_to_deduct} DZD ({sessions_to_reduce_count} sessions from group {group_for_price_info.name}). Old balance: {old_balance}, New balance: {student.prepaid_balance}"
                     )
                     messages.success(request, f"تم تخفيض الرصيد المسبق بنجاح بمقدار {amount_to_deduct} دج.")

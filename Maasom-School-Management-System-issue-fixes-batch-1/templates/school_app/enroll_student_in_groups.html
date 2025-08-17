@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}تسجيل الطالب في فوج - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block title %}تسجيل الطالب في فوج - {{ student.full_name }}{% endblock %}
 
 {% block page_title %}{{ page_title }}{% endblock %}
 
 {% block content %}
 <div class="card">
   <div class="card-header">
-    <h2 class="card-title">تسجيل الطالب/ة: {{ student.first_name }} {{ student.last_name }}</h2>
+    <h2 class="card-title">تسجيل الطالب/ة: {{ student.full_name }}</h2>
     <p class="card-subtitle mb-2 text-muted">المستوى الدراسي: {{ student.academic_level.get_category_display }} - {{ student.academic_level.name }}</p>
   </div>
   <div class="card-body">
@@ -29,7 +29,7 @@
         <ul class="list-group">
           {% for group in enrolled_groups %}
             <li class="list-group-item">
-              {{ group.name }} ({{ group.subject.name }}) - المدرس: {{ group.teacher.first_name }} {{ group.teacher.last_name }}
+              {{ group.name }} ({{ group.subject.name }}) - المدرس: {{ group.teacher.full_name }}
             </li>
           {% endfor %}
         </ul>
@@ -53,7 +53,7 @@
                   <input type="checkbox" class="custom-control-input" id="group_{{ group.id }}" name="groups_to_enroll" value="{{ group.id }}">
                   <label class="custom-control-label" for="group_{{ group.id }}">
                     <strong>{{ group.name }}</strong> ({{ group.subject.name }})<br>
-                    <small>المدرس: {{ group.teacher.first_name }} {{ group.teacher.last_name }}</small><br>
+                    <small>المدرس: {{ group.teacher.full_name }}</small><br>
                     <small>التوقيت: يوم {{ group.get_session_day_display }} الساعة {{ group.session_start_time|time:"H:i" }} ({{ group.session_duration }} ساعات)</small><br>
                     <small>السعر لـ4 حصص: {{ group.price_per_4_sessions|floatformat:0 }} دج</small>
                   </label>

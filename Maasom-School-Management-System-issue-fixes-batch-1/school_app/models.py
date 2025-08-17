@@ -28,8 +28,7 @@ class Subject(models.Model):
         verbose_name_plural = "المواد الدراسية"
 
 class Student(models.Model):
-    first_name = models.CharField(max_length=100, verbose_name="الاسم الأول")
-    last_name = models.CharField(max_length=100, verbose_name="اللقب")
+    full_name = models.CharField(max_length=201, verbose_name="الاسم الكامل")
     phone_number = models.CharField(max_length=20, unique=True, verbose_name="رقم هاتف الطالب")
     guardian_phone = models.CharField(max_length=20, verbose_name="رقم هاتف الولي")
     birth_day = models.IntegerField(verbose_name="يوم الميلاد")
@@ -42,21 +41,20 @@ class Student(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return self.full_name
 
     class Meta:
         verbose_name = "طالب"
         verbose_name_plural = "الطلاب"
 
 class Teacher(models.Model):
-    first_name = models.CharField(max_length=100, verbose_name="الاسم الأول")
-    last_name = models.CharField(max_length=100, verbose_name="اللقب")
+    full_name = models.CharField(max_length=201, verbose_name="الاسم الكامل")
     phone_number = models.CharField(max_length=20, unique=True, verbose_name="رقم الهاتف")
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT, verbose_name="المادة الأساسية")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     
     def __str__(self):
-        return f"{self.first_name} {self.last_name} - {self.subject}"
+        return f"{self.full_name} - {self.subject}"
 
     class Meta:
         verbose_name = "مدرس"

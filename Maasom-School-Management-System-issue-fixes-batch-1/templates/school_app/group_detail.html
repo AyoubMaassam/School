@@ -24,7 +24,7 @@
         <h5 class="card-title">معلومات الفوج</h5>
         <p><strong>اسم الفوج:</strong> {{ group.name }}</p>
         <p><strong>المادة:</strong> {{ group.subject.name }}</p>
-        <p><strong>المعلم:</strong> {{ group.teacher.first_name }} {{ group.teacher.last_name }}</p>
+        <p><strong>المعلم:</strong> {{ group.teacher.full_name }}</p>
         <p><strong>السعر لكل 4 حصص (دج):</strong> {{ group.price_per_4_sessions }}</p>
         <p><strong>يوم الحصة:</strong> {{ group.get_session_day_display }}</p>
         <p><strong>وقت الحصة:</strong> {{ group.session_start_time|time:"H:i" }} (المدة: {{ group.session_duration }} ساعات)</p>
@@ -56,7 +56,7 @@
           <ul class="list-group">
             {% for student in group.students.all %}
               <li class="list-group-item">
-                <a href="{% url 'student_detail' student.id %}">{{ student.first_name }} {{ student.last_name }}</a>
+                <a href="{% url 'student_detail' student.id %}">{{ student.full_name }}</a>
               </li>
             {% endfor %}
           </ul>

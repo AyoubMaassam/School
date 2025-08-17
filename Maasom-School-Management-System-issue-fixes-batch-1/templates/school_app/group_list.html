@@ -42,7 +42,7 @@
               <tr>
                 <td>{{ group.name }}</td>
                 <td>{{ group.subject.name }}</td>
-                <td>{{ group.teacher.first_name }} {{ group.teacher.last_name }}</td>
+                <td>{{ group.teacher.full_name }}</td>
             <td>
               {% for level in group.academic_levels.all %}
                 {{ level.name }}{% if not forloop.last %}, {% endif %}

@@ -9,7 +9,7 @@
   <div class="card-header">
     <h3 class="card-title">تفاصيل الحصة</h3>
     <p class="card-subtitle text-muted">
-      الفوج: {{ session.group.name }} ({{ session.group.subject.name }}) - المدرس: {{ session.group.teacher.first_name }} {{ session.group.teacher.last_name }} <br>
+      الفوج: {{ session.group.name }} ({{ session.group.subject.name }}) - المدرس: {{ session.group.teacher.full_name }} <br>
       التاريخ: {{ session.date|date:"l, d F Y" }} | الوقت: {{ session.start_time|time:"H:i" }}
     </p>
   </div>

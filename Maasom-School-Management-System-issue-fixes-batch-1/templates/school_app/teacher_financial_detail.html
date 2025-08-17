@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
 {% block title %}
-التفاصيل المالية للمدرس: {{ teacher.first_name }} {{ teacher.last_name }}
+التفاصيل المالية للمدرس: {{ teacher.full_name }}
 {% endblock %}
 
-{% block page_title %}التفاصيل المالية للمدرس: {{ teacher.first_name }} {{ teacher.last_name }}{% endblock %}
+{% block page_title %}التفاصيل المالية للمدرس: {{ teacher.full_name }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -14,7 +14,7 @@
         </div>
         <div class="card-body">
             <p class="lead">
-                <strong>المدرس:</strong> {{ teacher.first_name }} {{ teacher.last_name }}
+                <strong>المدرس:</strong> {{ teacher.full_name }}
             </p>
             <p class="lead">
                 <strong>إجمالي عدد الحصص غير المدفوعة التي حضرها المدرس:</strong>

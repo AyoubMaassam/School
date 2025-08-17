@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}الدفع الشهري للطالب - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block title %}الدفع الشهري للطالب - {{ student.full_name }}{% endblock %}
 
 {% block page_title %}{{ page_title }}{% endblock %}
 
@@ -29,7 +29,7 @@
             <h3 class="card-title">معلومات الطالب</h3>
         </div>
         <div class="card-body">
-            <p><strong>الاسم:</strong> {{ student.first_name }} {{ student.last_name }}</p>
+            <p><strong>الاسم:</strong> {{ student.full_name }}</p>
             <p><strong>المستوى الدراسي:</strong> {{ student.academic_level.get_category_display }} - {{ student.academic_level.name }}</p>
         </div>
     </div>
@@ -47,7 +47,7 @@
                             <option value="">--- اختر فوجاً ---</option>
                             {% for group_item in enrolled_groups %}
                                 <option value="{{ group_item.id }}" {% if selected_group and selected_group.id == group_item.id %}selected{% endif %}>
-                                    {{ group_item.name }} ({{ group_item.subject.name }} - {{ group_item.teacher.first_name }} {{ group_item.teacher.last_name }})
+                                    {{ group_item.name }} ({{ group_item.subject.name }} - {{ group_item.teacher.full_name }})
                                 </option>
                             {% endfor %}
                         </select>
@@ -62,7 +62,7 @@
                 <hr>
                 <h4>تفاصيل الفوج: {{ selected_group.name }}</h4>
                 <p><strong>المادة:</strong> {{ selected_group.subject.name }}</p>
-                <p><strong>المدرس:</strong> {{ selected_group.teacher.first_name }} {{ selected_group.teacher.last_name }}</p>
+                <p><strong>المدرس:</strong> {{ selected_group.teacher.full_name }}</p>
                 <p><strong>سعر الـ 4 حصص:</strong> {{ selected_group.price_per_4_sessions|floatformat:2 }} دج (يعني {{ price_per_session|floatformat:2 }} دج للحصة الواحدة)</p>
 
                 <div class="my-3 p-3 bg-light border rounded">

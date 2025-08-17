@@ -33,7 +33,7 @@
                 <tr>
                   <td>{{ student.id }}</td>
                   <td>
-                    <a href="{% url 'student_detail' student.id %}">{{ student.first_name }} {{ student.last_name }}</a>
+                    <a href="{% url 'student_detail' student.id %}">{{ student.full_name }}</a>
                   </td>
                   <td>{{ student.academic_level.get_category_display }} - {{ student.academic_level.name }}</td>
                   <td>

@@ -71,7 +71,7 @@
                   <td>{{ session.start_time|time:"H:i" }}</td>
                   <td>{{ session.group.name }}</td>
                   <td>{{ session.group.subject.name }}</td>
-                  <td>{{ session.group.teacher.first_name }} {{ session.group.teacher.last_name }}</td>
+                  <td>{{ session.group.teacher.full_name }}</td>
                   <td>-</td> {# Placeholder for Room #}
                 </tr>
               {% endfor %}

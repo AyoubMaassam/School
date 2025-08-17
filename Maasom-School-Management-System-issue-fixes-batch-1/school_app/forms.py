@@ -18,7 +18,7 @@ class GroupForm(forms.ModelForm):
     )
 
     teacher = forms.ModelChoiceField(
-        queryset=Teacher.objects.all().order_by('first_name', 'last_name'),
+        queryset=Teacher.objects.all().order_by('full_name'),
         widget=forms.Select(attrs={'class': 'form-control'}),
         label="المدرس"
     )
@@ -58,7 +58,7 @@ class GroupForm(forms.ModelForm):
         if 'subject' in self.fields:
             self.fields['subject'].queryset = Subject.objects.all().order_by('name')
         if 'teacher' in self.fields:
-            self.fields['teacher'].queryset = Teacher.objects.all().order_by('first_name', 'last_name')
+            self.fields['teacher'].queryset = Teacher.objects.all().order_by('full_name')
 
         # If you want to dynamically filter teachers based on subject (requires more complex JS or a page reload approach)
         # This form is for server-rendered editing, so dynamic filtering isn't straightforward without JS.

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}الدفع الشهري للمدرس - {{ teacher.first_name }} {{ teacher.last_name }}{% endblock %}
+{% block title %}الدفع الشهري للمدرس - {{ teacher.full_name }}{% endblock %}
 
 {% block page_title %}{{ page_title }}{% endblock %}
 
@@ -31,7 +31,7 @@
             <h3 class="card-title">معلومات المدرس</h3>
         </div>
         <div class="card-body">
-            <p><strong>الاسم:</strong> {{ teacher.first_name }} {{ teacher.last_name }}</p>
+            <p><strong>الاسم:</strong> {{ teacher.full_name }}</p>
             <p><strong>المادة الأساسية:</strong> {{ teacher.subject.name }}</p>
         </div>
     </div>

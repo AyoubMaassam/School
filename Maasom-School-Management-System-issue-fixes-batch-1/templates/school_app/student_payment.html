@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}مدفوعات الطالب - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+{% block title %}مدفوعات الطالب - {{ student.full_name }}{% endblock %}
 
 {% block page_title %}{{ page_title }}{% endblock %}
 
@@ -29,7 +29,7 @@
       <h3 class="card-title">معلومات الطالب</h3>
     </div>
     <div class="card-body">
-      <p><strong>الاسم الكامل:</strong> {{ student.first_name }} {{ student.last_name }}</p>
+      <p><strong>الاسم الكامل:</strong> {{ student.full_name }}</p>
       <p><strong>المستوى الدراسي:</strong> {{ student.academic_level.get_category_display }} - {{ student.academic_level.name }}</p>
     </div>
   </div>
