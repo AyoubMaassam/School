@@ -191,31 +191,34 @@ def add_student(request):
 
 def search_student(request):
     query = request.GET.get('q', '').strip()
-    students_results = Student.objects.none()  # Start with an empty queryset
+    students_results = Student.objects.none()
     page_title = "البحث عن طالب"
 
     if query:
         page_title = f"نتائج البحث عن: \"{query}\""
 
-        # Build the query using Q objects for text-based fields
-        search_conditions = (
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
-            Q(phone_number__icontains=query) |
-            Q(card_number__icontains=query)
-        )
+        # General search conditions for phone and card number
+        other_conditions = Q(phone_number__icontains=query) | Q(card_number__icontains=query)
 
-        # If query is a number, also try searching by ID
+        # Name search logic
+        query_words = query.split()
+        # Start with an empty Q object for ANDing
+        name_conditions = Q()
+        for word in query_words:
+            # Each word must be present in either the first or last name
+            name_conditions &= (Q(first_name__icontains=word) | Q(last_name__icontains=word))
+
+        # Also search by ID if the query is a number
         if query.isdigit():
             try:
-                # Add the ID search to the existing conditions using OR
-                search_conditions |= Q(pk=int(query))
+                other_conditions |= Q(pk=int(query))
             except ValueError:
-                # This case is unlikely given isdigit(), but good practice
                 pass
 
-        # Using .distinct() to avoid duplicate results if a query matches multiple fields for the same student
-        students_results = Student.objects.filter(search_conditions).distinct().select_related('academic_level').order_by('last_name', 'first_name')
+        # Combine name search with other searches using OR
+        final_conditions = name_conditions | other_conditions
+
+        students_results = Student.objects.filter(final_conditions).distinct().select_related('academic_level').order_by('last_name', 'first_name')
 
     context = {
         'query': query,
