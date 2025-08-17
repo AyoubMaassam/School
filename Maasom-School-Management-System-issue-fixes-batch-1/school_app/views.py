@@ -1159,7 +1159,7 @@ def add_session(request):
 
 def manage_session_attendance(request, session_id):
     session = get_object_or_404(Session.objects.select_related('group__subject', 'group__teacher'), id=session_id)
-    students_in_group = session.group.students.all().order_by('last_name', 'first_name')
+    students_in_group = session.group.students.all().order_by('full_name')
     page_title = f"إدارة حضور حصة: {session.group.name} - {session.date.strftime('%Y-%m-%d')}"
 
     if request.method == 'POST':
@@ -1203,7 +1203,7 @@ def manage_session_attendance(request, session_id):
         data = attendance_data_map.get(student.id, {})
         student_attendance_list.append({
             'student_id': student.id,
-            'student_name': f"{student.first_name} {student.last_name}",
+            'student_name': student.full_name,
             'is_present': data.get('present', False),
             'is_paid': data.get('paid', False)
             # 'is_force_paid': data.get('force_paid', False) # If using this feature
