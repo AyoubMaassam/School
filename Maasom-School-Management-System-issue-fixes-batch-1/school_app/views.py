@@ -2956,7 +2956,7 @@ def print_student_barcode(request, student_id):
     writer_options = {
         'module_height': 10.0,
         'write_text': False,
-        'quiet_zone': 2.0,
+        'quiet_zone': 1.0,
     }
     code128_barcode = Code128(barcode_data, writer=ImageWriter())
 
