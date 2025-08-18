@@ -2833,42 +2833,27 @@ def teacher_monthly_payment_view(request, teacher_id):
             return redirect(redirect_url)
 
         elif action == 'mark_student_absence_excused':
+            # This action is now AJAX-only, so we always return JsonResponse.
             attendance_id_to_excuse = request.POST.get('attendance_id')
             if not attendance_id_to_excuse:
-                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    return JsonResponse({'status': 'error', 'message': 'لم يتم تقديم معرف الحضور.'}, status=400)
-                messages.error(request, 'لم يتم تقديم معرف الحضور.')
-                return redirect(redirect_url)
+                return JsonResponse({'status': 'error', 'message': 'لم يتم تقديم معرف الحضور.'}, status=400)
 
             try:
                 attendance = get_object_or_404(Attendance, id=attendance_id_to_excuse, session__group=current_group_post)
-                if not attendance.present:
-                    attendance.excused_absence = True
-                    attendance.save()
+                if attendance.present:
+                    return JsonResponse({'status': 'error', 'message': "لا يمكن عذر طالب حاضر."}, status=400)
 
-                    # Invalidate calculation if it exists in the session
-                    if 'calculated_teacher_payment_details' in request.session:
-                        del request.session['calculated_teacher_payment_details']
+                attendance.excused_absence = True
+                attendance.save()
 
-                    message = f"تم عذر غياب الطالب {attendance.student.full_name} بنجاح. يرجى إعادة حساب الدفع."
-                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                        return JsonResponse({'status': 'success', 'message': message})
-                    else:
-                        messages.success(request, message)
-                else:
-                    message = "لا يمكن عذر طالب حاضر."
-                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                        return JsonResponse({'status': 'error', 'message': message}, status=400)
-                    else:
-                        messages.warning(request, message)
+                if 'calculated_teacher_payment_details' in request.session:
+                    del request.session['calculated_teacher_payment_details']
+
+                message = f"تم عذر غياب الطالب {attendance.student.full_name} بنجاح. يرجى إعادة حساب الدفع."
+                return JsonResponse({'status': 'success', 'message': message})
+
             except Http404:
-                message = "لم يتم العثور على سجل الحضور المحدد."
-                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    return JsonResponse({'status': 'error', 'message': message}, status=404)
-                else:
-                    messages.error(request, message)
-
-            return redirect(redirect_url)
+                return JsonResponse({'status': 'error', 'message': "لم يتم العثور على سجل الحضور المحدد."}, status=404)
 
     # --- GET request logic ---
     if selected_group_id_str:
