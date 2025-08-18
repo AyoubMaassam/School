@@ -80,8 +80,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const scanInput = document.getElementById('scan-input');
     const notificationArea = document.getElementById('notification-area');
-    const attendanceTableBody = document.getElementById('today-attendance-tbody');
-    const noAttendanceRow = document.getElementById('no-attendance-row');
     const csrftoken = getCookie('csrftoken');
 
     function getCookie(name) {
@@ -117,29 +115,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, duration);
     }
 
-    function addAttendanceToLog(data) {
-        if (noAttendanceRow) {
-            noAttendanceRow.style.display = 'none';
-        }
-        const row = attendanceTableBody.insertRow(0); // Insert at the top
-        row.insertCell().textContent = data.student_name || 'N/A';
-        row.insertCell().textContent = data.session_info || 'N/A';
-        row.insertCell().textContent = new Date().toLocaleString('sv-SE');
-
-        const paymentCell = row.insertCell();
-        const paymentBadge = document.createElement('span');
-        paymentBadge.classList.add('badge');
-        if (data.payment_status_message) {
-            paymentBadge.classList.add('badge-danger');
-            paymentBadge.textContent = 'غير مدفوعة';
-        } else {
-            paymentBadge.classList.add('badge-success');
-            paymentBadge.textContent = 'مدفوعة';
-        }
-        paymentCell.appendChild(paymentBadge);
-    }
-
-
     async function handleAttendanceScan() {
         const identifier = scanInput.value.trim();
         if (!identifier) return;
@@ -166,7 +141,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         showNotification(data.payment_status_message, 'warning', 1500);
                     }, 500);
                 }
-                addAttendanceToLog(data);
             } else {
                 showNotification(data.message || 'خطأ غير معروف', 'error', 3000);
             }
