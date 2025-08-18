@@ -2824,19 +2824,22 @@ def teacher_monthly_payment_view(request, teacher_id):
             if not selected_session_ids:
                 messages.error(request, "الرجاء اختيار حصة واحدة على الأقل.")
             else:
-                total_presences, total_unexcused_absences_for_payment = 0, 0
+                total_payable_instances = 0
 
-                attendance_records_to_calc = Attendance.objects.filter(session_id__in=selected_session_ids, session__group=current_group_post)
+                # Fetch all relevant attendance records in a single query
+                attendance_records_to_calc = Attendance.objects.filter(
+                    session_id__in=selected_session_ids,
+                    session__group=current_group_post
+                )
 
+                # Count every student who was present OR was absent but not excused
                 for att_calc in attendance_records_to_calc:
-                    if att_calc.present:
-                        total_presences += 1
-                    elif not att_calc.excused_absence:
-                        checkbox_name = f'count_absence_{att_calc.session_id}_{att_calc.student_id}'
-                        if request.POST.get(checkbox_name) == 'on':
-                            total_unexcused_absences_for_payment += 1
+                    if att_calc.present or not att_calc.excused_absence:
+                        total_payable_instances += 1
 
-                total_payable_instances = total_presences + total_unexcused_absences_for_payment
+                # For detailed breakdown in the session, we still need to count them separately
+                total_presences = attendance_records_to_calc.filter(present=True).count()
+                total_unexcused_absences_for_payment = total_payable_instances - total_presences
                 request.session['calculated_teacher_payment_details'] = {
                     'group_id': current_group_post.id, 'group_name': current_group_post.name,
                     'teacher_price_per_session': str(teacher_price_decimal_post), 'selected_session_ids': selected_session_ids,
