@@ -6,137 +6,131 @@
     <style>
         body {
             font-family: 'DejaVu Sans', 'Arial', sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             line-height: 1.6;
-            color: #333;
-            background-color: #fff;
         }
         .receipt-container {
-            width: 80%;
-            margin: 0 auto;
-            padding: 20px;
+            width: 80mm; /* Standard thermal printer width */
+            max-width: 400px;
+            background-color: #fff;
             border: 1px solid #ccc;
+            padding: 15px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
         }
         .header h1 {
             margin: 0;
-            font-size: 24px;
-            color: #2c3e50;
+            font-size: 1.2em;
+            color: #333;
         }
-        .details, .payment-summary, .sessions-list {
-            margin-bottom: 20px;
+        .item {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
         }
-        .details p, .payment-summary p {
-            margin: 8px 0;
-            font-size: 16px;
-        }
-        .details strong, .payment-summary strong {
-            display: inline-block;
-            min-width: 200px; /* Adjust for alignment */
+        .item .label {
+            font-weight: bold;
             color: #555;
         }
-        .sessions-list table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .sessions-list th, .sessions-list td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: right;
-        }
-        .sessions-list th {
-            background-color: #f2f2f2;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 14px;
-            color: #777;
-        }
-        .print-date {
+        .item .value {
+            color: #333;
             text-align: left;
-            font-size: 12px;
-            color: #999;
-            margin-top: 20px;
+        }
+        .total-section {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #999;
+        }
+        .footer-notes {
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+            margin-top: 15px;
         }
         @media print {
-            body { margin: 0; font-size: 12pt; }
-            .receipt-container { width: 100%; border: none; box-shadow: none; margin: 0; padding: 0; }
-            .no-print { display: none; }
-            .sessions-list th, .sessions-list td { border: 1px solid #ccc !important; }
+            body {
+                background-color: #fff;
+                padding: 0;
+                margin: 0;
+                display: block;
+            }
+            .receipt-container {
+                width: 100%;
+                max-width: none;
+                border: none;
+                box-shadow: none;
+                padding: 5px;
+                font-size: 10pt;
+            }
         }
     </style>
 </head>
 <body>
     <div class="receipt-container">
         <div class="header">
-            <h1>مدرسة معصوم (اسم مدرستك هنا)</h1>
-            <h2>إيصال دفع مستحقات مدرس</h2>
+            <h1>جمعية النجوم الثقافية</h1>
+            <p style="font-size: 0.85em; margin: 5px 0;">إيصال دفع مستحقات مدرس</p>
         </div>
 
         <div class="details">
-            <p><strong>اسم المدرس:</strong> {{ teacher.first_name }} {{ teacher.last_name }}</p>
-            <p><strong>الفوج:</strong> {{ group.name }} ({{ group.subject.name }})</p>
-            <p><strong>إجمالي عدد الطلاب في الفوج:</strong> {{ group.students.count }}</p>
+            <div class="item">
+                <span class="label">اسم المدرس:</span>
+                <span class="value">{{ teacher.full_name }}</span>
+            </div>
+            <div class="item">
+                <span class="label">الفوج:</span>
+                <span class="value">{{ group.name }}</span>
+            </div>
+            <div class="item">
+                <span class="label">تاريخ الدفع:</span>
+                <span class="value">{{ print_date|date:"Y-m-d H:i" }}</span>
+            </div>
         </div>
 
         <div class="payment-summary">
-            <p><strong>سعر الدفع لكل حالة (طالب/غياب):</strong> {{ price_per_instance|floatformat:2 }} دج</p>
-            <p><strong>إجمالي حضور الطلاب المدفوع له:</strong> {{ total_student_presences_paid_for }}</p>
-            <p><strong>إجمالي الغيابات المحتسبة للدفع:</strong> {{ total_absences_counted_for_payment }}</p>
-            <p><strong>إجمالي الحالات الفعالة المدفوعة:</strong> {{ total_effective_paid_instances }}</p>
+            <div class="item">
+                <span class="label">عدد الحصص المدفوعة:</span>
+                <span class="value">{{ total_sessions }}</span>
+            </div>
+            <div class="item">
+                <span class="label">سعر المدرس لكل طالب:</span>
+                <span class="value">{{ price_per_instance|floatformat:2 }} دج</span>
+            </div>
             <hr>
-            <p><strong>المبلغ الإجمالي المدفوع للمدرس:</strong> {{ total_payment_amount|floatformat:2 }} دج</p>
-            <hr>
+            <div class="item">
+                <span class="label">إجمالي الحضور:</span>
+                <span class="value">{{ total_presences }}</span>
+            </div>
+            <div class="item">
+                <span class="label">إجمالي الغيابات المحتسبة:</span>
+                <span class="value">{{ total_absences_counted }}</span>
+            </div>
+             <div class="item">
+                <span class="label">الغيابات المعذورة (غير مدفوعة):</span>
+                <span class="value">{{ excused_absences_count }}</span>
+            </div>
         </div>
 
-        {% if compensated_sessions_data %}
-        <div class="sessions-list">
-            <p><strong>تفاصيل الحصص المعوضة:</strong></p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>تاريخ الحصة</th>
-                        <th>وقت البدء</th>
-                        <th>الطلاب الحاضرون</th>
-                        <th>الغياب (غير مبرر)</th>
-                        <th>الغياب (مبرر)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for session_data in compensated_sessions_data %}
-                    <tr>
-                        <td>{{ session_data.date|date:"Y-m-d" }}</td>
-                        <td>{{ session_data.start_time|time:"H:i" }}</td>
-                        <td>{{ session_data.students_present_count }}</td>
-                        <td>{{ session_data.students_absent_unexcused_count }}</td>
-                        <td>{{ session_data.students_absent_excused_count }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="total-section">
+            <div class="item" style="font-size: 1.1em;">
+                <span class="label">المبلغ الإجمالي المدفوع:</span>
+                <span class="value"><strong>{{ total_payment_amount|floatformat:2 }} دج</strong></span>
+            </div>
         </div>
-        {% else %}
-        <div class="sessions-list">
-            <p><em>لم يتم تحديد تفاصيل حصص معينة لهذا الإيصال.</em></p>
-        </div>
-        {% endif %}
 
-        <div class="footer">
+        <div class="footer-notes">
             <p>شكراً لجهودكم.</p>
-            <p class="print-date">طبع في: {{ print_date|date:"Y-m-d H:i:s" }}</p>
         </div>
     </div>
-
-    <script type="text/javascript">
-        window.onload = function() {
-            window.print();
-        };
-    </script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponseRedirect, HttpResponse, Http404
+from django.template.loader import render_to_string
+from weasyprint import HTML
 from django.db import transaction # For atomic operations if needed, though simple creation might not strictly need it yet
 from decimal import Decimal # Ensure Decimal is imported
 from .models import Student, Teacher, AcademicLevel, Subject, Group, Session, Attendance, ActionLog, StudentGroup
@@ -2654,54 +2656,51 @@ def student_monthly_payment_view(request, student_id):
 def print_student_payment_receipt(request, student_id, group_id):
     student = get_object_or_404(Student, id=student_id)
     group = get_object_or_404(Group, id=group_id)
-    amount_paid_str = request.GET.get('amount_paid', '0') # This is cash/card payment
+    amount_paid_str = request.GET.get('amount_paid', '0')
     session_ids_str = request.GET.get('session_ids', '')
     prepaid_used_str = request.GET.get('prepaid_used', '0')
-
 
     try:
         amount_paid_cash_card = Decimal(amount_paid_str)
         prepaid_used = Decimal(prepaid_used_str)
     except ValueError:
-        amount_paid_cash_card = Decimal('0.00')
-        prepaid_used = Decimal('0.00')
-        # messages.error(request, "بيانات الإيصال غير صالحة.") # Cannot send messages from here easily
-        # return redirect(...) # Or handle error appropriately
-
-    total_credited_for_sessions = amount_paid_cash_card + prepaid_used
+        return HttpResponse("Invalid payment data.", status=400)
 
     paid_sessions = []
     if session_ids_str:
         try:
             session_ids = [int(sid) for sid in session_ids_str.split(',') if sid.isdigit()]
-            # Ensure sessions belong to the specified group for this student's receipt context
             paid_sessions = Session.objects.filter(id__in=session_ids, group=group).order_by('date', 'start_time')
         except ValueError:
-            pass # Keep paid_sessions empty
+            pass
 
     context = {
         'student': student,
         'group': group,
-        'amount_paid_cash_card': amount_paid_cash_card, # Actual amount handed over
-        'prepaid_used': prepaid_used, # Amount taken from prepaid balance
-        'total_credited_for_sessions': total_credited_for_sessions, # Total value applied to sessions
+        'amount_paid_cash_card': amount_paid_cash_card,
+        'prepaid_used': prepaid_used,
+        'total_credited_for_sessions': amount_paid_cash_card + prepaid_used,
         'paid_sessions': paid_sessions,
-        'price_per_session': group.price_per_4_sessions / Decimal('4') if group.price_per_4_sessions > 0 else Decimal('0.00'),
+        'price_per_session': group.price_per_4_sessions / Decimal('4') if group.price_per_4_sessions and group.price_per_4_sessions > 0 else Decimal('0.00'),
         'print_date': timezone.now(),
     }
-    return render(request, 'school_app/print_student_payment_receipt.html', context)
+
+    html_string = render_to_string('school_app/print_student_payment_receipt.html', context)
+    pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri()).write_pdf()
+
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = f'filename="student_receipt_{student.id}_{group.id}.pdf"'
+    return response
 
 
 def print_teacher_payment_receipt(request, teacher_id, group_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     group = get_object_or_404(Group, id=group_id)
 
-    # Retrieve details from GET parameters
     total_payment_amount_str = request.GET.get('amount_paid', '0')
     price_per_instance_str = request.GET.get('price_per_session', '0')
     total_presences_str = request.GET.get('total_presences', '0')
     total_absences_counted_str = request.GET.get('total_absences_counted', '0')
-    session_ids_str = request.GET.get('session_ids', '')
     student_count_str = request.GET.get('student_count', '0')
     total_sessions_str = request.GET.get('total_sessions', '0')
     excused_absences_count_str = request.GET.get('excused_absences_count', '0')
@@ -2715,8 +2714,7 @@ def print_teacher_payment_receipt(request, teacher_id, group_id):
         total_sessions = int(total_sessions_str)
         excused_absences_count = int(excused_absences_count_str)
     except (ValueError, TypeError):
-        messages.error(request, "بيانات الإيصال غير صالحة.")
-        return redirect(reverse('teacher_monthly_payment', args=[teacher_id]) + f"?group_id={group_id}")
+        return HttpResponse("Invalid receipt data.", status=400)
 
     context = {
         'teacher': teacher,
@@ -2730,7 +2728,13 @@ def print_teacher_payment_receipt(request, teacher_id, group_id):
         'excused_absences_count': excused_absences_count,
         'print_date': timezone.now(),
     }
-    return render(request, 'school_app/print_teacher_payment_receipt.html', context)
+
+    html_string = render_to_string('school_app/print_teacher_payment_receipt.html', context)
+    pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri()).write_pdf()
+
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = f'filename="teacher_receipt_{teacher.id}_{group.id}.pdf"'
+    return response
 
 
 def teacher_monthly_payment_view(request, teacher_id):
@@ -2835,17 +2839,40 @@ def teacher_monthly_payment_view(request, teacher_id):
 
         elif action == 'mark_student_absence_excused':
             attendance_id_to_excuse = request.POST.get('attendance_id')
-            if attendance_id_to_excuse:
+            if not attendance_id_to_excuse:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': 'لم يتم تقديم معرف الحضور.'}, status=400)
+                messages.error(request, 'لم يتم تقديم معرف الحضور.')
+                return redirect(redirect_url)
+
+            try:
                 attendance = get_object_or_404(Attendance, id=attendance_id_to_excuse, session__group=current_group_post)
                 if not attendance.present:
                     attendance.excused_absence = True
                     attendance.save()
-                    # Invalidate calculation if it exists
+
+                    # Invalidate calculation if it exists in the session
                     if 'calculated_teacher_payment_details' in request.session:
                         del request.session['calculated_teacher_payment_details']
-                    messages.success(request, f"تم عذر غياب الطالب {attendance.student.full_name} بنجاح. يرجى إعادة حساب الدفع.")
+
+                    message = f"تم عذر غياب الطالب {attendance.student.full_name} بنجاح. يرجى إعادة حساب الدفع."
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'success', 'message': message})
+                    else:
+                        messages.success(request, message)
                 else:
-                    messages.warning(request, "لا يمكن عذر طالب حاضر.")
+                    message = "لا يمكن عذر طالب حاضر."
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': message}, status=400)
+                    else:
+                        messages.warning(request, message)
+            except Http404:
+                message = "لم يتم العثور على سجل الحضور المحدد."
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': message}, status=404)
+                else:
+                    messages.error(request, message)
+
             return redirect(redirect_url)
 
     # --- GET request logic ---

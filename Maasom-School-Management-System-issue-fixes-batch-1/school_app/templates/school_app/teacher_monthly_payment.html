@@ -73,61 +73,64 @@
                 {% if not sessions_to_display %}
                     <p class="alert alert-info mt-3">لا توجد حصص غير مدفوعة لهذا المدرس في هذا الفوج (تأكد من تسجيل حضور المدرس للحصص أولاً).</p>
                 {% else %}
+                    <!-- The main form for calculation now only wraps the calculation button -->
+                    <p class="text-muted">اختر الحصص المراد دفعها. الغيابات غير المعذورة يتم احتسابها تلقائياً.</p>
+
+                    {% for s_info in sessions_to_display %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <!-- This checkbox is now associated with the main form via the 'form' attribute -->
+                                <input class="form-check-input session-checkbox-calc" type="checkbox" name="sessions_to_pay_ids" value="{{ s_info.session_id }}" id="session_{{ s_info.session_id }}" form="calculate-payment-form">
+                                <label class="form-check-label font-weight-bold" for="session_{{ s_info.session_id }}">
+                                    حصة يوم {{ s_info.date|date:"Y-m-d" }} الساعة {{ s_info.time|time:"H:i" }}
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-borderless">
+                                    <tbody>
+                                    {% for student_status in s_info.student_statuses %}
+                                        <tr>
+                                            <td style="width: 50%;">{{ student_status.name }}</td>
+                                            <td style="width: 25%;">
+                                                {% if student_status.is_present %}
+                                                    <span class="badge badge-success">حاضر</span>
+                                                {% elif student_status.is_excused %}
+                                                    <span class="badge badge-warning">غياب معذور</span>
+                                                {% else %}
+                                                    <span class="badge badge-danger">غائب (غير معذور)</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="width: 25%;">
+                                                {% if not student_status.is_present and not student_status.is_excused %}
+                                                    <!-- This is now an independent form, no longer nested -->
+                                                    <form method="POST" action="{% url 'teacher_monthly_payment' teacher.id %}" class="form-excuse-absence" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="mark_student_absence_excused">
+                                                        <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
+                                                        <input type="hidden" name="teacher_price_per_session" value="{{ teacher_price_per_session_str }}">
+                                                        <input type="hidden" name="attendance_id" value="{{ student_status.attendance_id }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-warning">جعله غياب معذور</button>
+                                                    </form>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- This form now only contains the button, but collects all checkboxes with form="calculate-payment-form" -->
                     <form id="calculate-payment-form" method="POST" action="{% url 'teacher_monthly_payment' teacher.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="calculate_payment">
                         <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
                         <input type="hidden" name="teacher_price_per_session" value="{{ teacher_price_per_session_str }}">
-
-                        <p class="text-muted">اختر الحصص المراد دفعها. الغيابات غير المعذورة يتم احتسابها تلقائياً.</p>
-
-                        {% for s_info in sessions_to_display %}
-                        <div class="card mb-3">
-                            <div class="card-header">
-                                <div class="form-check">
-                                    <input class="form-check-input session-checkbox-calc" type="checkbox" name="sessions_to_pay_ids" value="{{ s_info.session_id }}" id="session_{{ s_info.session_id }}">
-                                    <label class="form-check-label font-weight-bold" for="session_{{ s_info.session_id }}">
-                                        حصة يوم {{ s_info.date|date:"Y-m-d" }} الساعة {{ s_info.time|time:"H:i" }}
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless">
-                                        <tbody>
-                                        {% for student_status in s_info.student_statuses %}
-                                            <tr>
-                                                <td style="width: 50%;">{{ student_status.name }}</td>
-                                                <td style="width: 25%;">
-                                                    {% if student_status.is_present %}
-                                                        <span class="badge badge-success">حاضر</span>
-                                                    {% elif student_status.is_excused %}
-                                                        <span class="badge badge-warning">غياب معذور</span>
-                                                    {% else %}
-                                                        <span class="badge badge-danger">غائب (غير معذور)</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td style="width: 25%;">
-                                                    {% if not student_status.is_present and not student_status.is_excused %}
-                                                        <form method="POST" action="{% url 'teacher_monthly_payment' teacher.id %}">
-                                                            {% csrf_token %}
-                                                            <input type="hidden" name="action" value="mark_student_absence_excused">
-                                                            <input type="hidden" name="group_id_hidden" value="{{ selected_group.id }}">
-                                                            <input type="hidden" name="teacher_price_per_session" value="{{ teacher_price_per_session_str }}">
-                                                            <input type="hidden" name="attendance_id" value="{{ student_status.attendance_id }}">
-                                                            <button type="submit" class="btn btn-sm btn-outline-warning">جعله غياب معذور</button>
-                                                        </form>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-
                         <button type="submit" class="btn btn-info"><i class="fas fa-calculator"></i> حساب المبلغ المستحق للحصص المختارة</button>
                     </form>
                 {% endif %}
@@ -166,31 +169,36 @@
 
 {% block extra_js %}
 <script>
+// Helper function to show alerts
+function showAlert(message, category = 'info') {
+    const container = document.querySelector('.container-fluid');
+    const alertHtml = `
+        <div class="alert alert-${category} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    `;
+    // Insert the alert at the top of the container
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     const groupSelect = document.getElementById('group_id_select');
     const priceInput = document.getElementById('teacher_price_per_session_input');
 
-    // Persist price input if group changes, or submit form
     if (groupSelect) {
         groupSelect.addEventListener('change', function() {
-            // If price is already entered, auto-submit. Otherwise, user needs to fill price then click button.
             if (priceInput && priceInput.value) {
                 this.form.submit();
             }
         });
     }
 
-    // Select/Deselect all sessions for calculation
-    const selectAllCalcCheckbox = document.getElementById('select_all_sessions_calc');
-    if (selectAllCalcCheckbox) {
-        selectAllCalcCheckbox.addEventListener('change', function() {
-            document.querySelectorAll('.session-checkbox-calc').forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-        });
-    }
-
-    // Handle excuse absence forms with Fetch API
+    // De-nesting the forms was not enough, so we use JS to handle the excuse action,
+    // which prevents the main form from being submitted incorrectly.
     document.querySelectorAll('.form-excuse-absence').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -205,29 +213,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest' // To identify AJAX requests in Django
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Try to parse error message from JSON response
+                    return response.json().then(err => { throw new Error(err.message || 'Network response was not ok'); });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     showAlert(data.message, 'success');
-                    // Visually update the row
+                    // Visually update the UI without a page reload
                     const studentRow = button.closest('tr');
-                    studentRow.querySelector('.badge-danger').textContent = 'غياب معذور';
-                    studentRow.querySelector('.badge-danger').className = 'badge badge-warning';
-                    form.remove(); // Remove the button/form after successful excuse
+                    const badge = studentRow.querySelector('.badge-danger');
+                    if (badge) {
+                        badge.textContent = 'غياب معذور';
+                        badge.classList.remove('badge-danger');
+                        badge.classList.add('badge-warning');
+                    }
+                    form.remove(); // Remove the button after successful excuse
                 } else {
-                    showAlert(data.message, 'danger');
+                    // The error message is now parsed from the response
+                    showAlert(data.message || 'An unknown error occurred.', 'danger');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showAlert('حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى.', 'danger');
+                showAlert(error.message || 'حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى.', 'danger');
             })
             .finally(() => {
-                button.disabled = false;
-                button.innerHTML = 'عذر الغياب';
+                // The button is removed on success, so no need to re-enable it in that case.
+                if (document.body.contains(button)) {
+                    button.disabled = false;
+                    button.innerHTML = 'جعله غياب معذور';
+                }
             });
         });
     });
